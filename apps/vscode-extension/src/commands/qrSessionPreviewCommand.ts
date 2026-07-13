@@ -68,7 +68,7 @@ export function registerQrSessionPreviewCommand(
 
             await vscode.window
               .showInformationMessage(
-                'Session QR générée. Le serveur d’association sera ajouté à l’étape suivante.',
+                'Session QR générée.',
               );
           } catch (error) {
             const message =
