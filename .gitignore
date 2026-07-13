@@ -29,3 +29,5 @@ Thumbs.db
 
 # Native helper builds
 native/**/build/
+/artifacts/
+/apps/vscode-extension/bin/

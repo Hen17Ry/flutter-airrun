@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access } from 'node:fs/promises';
+import { access, chmod } from 'node:fs/promises';
 import * as path from 'node:path';
 
 import * as vscode from 'vscode';
@@ -64,6 +64,10 @@ export async function resolveHelperPath(
 
   checkedPaths.push(bundledPath);
 
+  await ensureBundledExecutable(
+    bundledPath,
+  );
+
   if (await isExecutable(bundledPath)) {
     return {
       executablePath: bundledPath,
@@ -104,6 +108,31 @@ export async function resolveHelperPath(
     checkedPaths,
     source: 'not-found',
   };
+}
+
+async function ensureBundledExecutable(
+  executablePath: string,
+): Promise<void> {
+  if (process.platform === 'win32') {
+    return;
+  }
+
+  try {
+    await access(
+      executablePath,
+      constants.F_OK,
+    );
+
+    await chmod(
+      executablePath,
+      0o755,
+    );
+  } catch {
+    /*
+     * Le chemin absent sera ensuite traité
+     * normalement par isExecutable().
+     */
+  }
 }
 
 async function isExecutable(

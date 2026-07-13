@@ -1,0 +1,13 @@
+.vscode/**
+src/**
+scripts/**
+node_modules/**
+**/*.ts
+**/*.map
+tsconfig.json
+esbuild.mjs
+pnpm-lock.yaml
+*.vsix
+
+# Fichiers enregistrés accidentellement depuis un navigateur
+resources/Extension VS Code Flutter_files/**

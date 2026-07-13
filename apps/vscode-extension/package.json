@@ -1,7 +1,7 @@
 {
   "name": "flutter-airrun",
   "displayName": "Flutter AirRun",
-  "description": "Run Flutter applications on Android devices over wireless ADB.",
+  "description": "Connect, pair and run Flutter applications on Android devices wirelessly.",
   "version": "0.1.0",
   "publisher": "flutter-airrun",
   "license": "MIT",
@@ -17,19 +17,16 @@
     "android",
     "adb",
     "wireless",
-    "device"
+    "debugging",
+    "qr-code",
+    "developer-tools"
   ],
-  "extensionKind": [
-    "ui"
+  "activationEvents": [
+    "onCommand:flutterAirRun.hello",
+    "onView:flutterAirRun"
   ],
-  "main": "./dist/extension.js",
   "contributes": {
     "commands": [
-      {
-        "command": "flutterAirRun.hello",
-        "title": "Hello",
-        "category": "Flutter AirRun"
-      },
       {
         "command": "flutterAirRun.doctor",
         "title": "Doctor",
@@ -102,7 +99,8 @@
         {
           "id": "flutterAirRun.actions",
           "name": "Actions",
-          "contextualTitle": "Flutter AirRun"
+          "contextualTitle": "Flutter AirRun",
+          "icon": "resources/airrun.svg"
         }
       ]
     },
@@ -120,7 +118,11 @@
     "build": "pnpm --filter @flutter-airrun/core build && node esbuild.mjs",
     "watch": "node esbuild.mjs --watch",
     "check": "pnpm --filter @flutter-airrun/core build && tsc --noEmit",
-    "clean": "rm -rf dist"
+    "clean": "rm -rf dist",
+    "package:prepare": "node scripts/prepare-package.mjs",
+    "vscode:prepublish": "pnpm run build && pnpm run package:prepare",
+    "package:vsix": "mkdir -p ../../artifacts && vsce package --target linux-x64 --no-dependencies --out ../../artifacts/flutter-airrun-${npm_package_version}-linux-x64.vsix",
+    "package:list": "vsce ls --no-dependencies"
   },
   "dependencies": {
     "@flutter-airrun/core": "workspace:*",
@@ -130,13 +132,18 @@
     "@types/node": "^22.20.1",
     "@types/qrcode": "^1.5.6",
     "@types/vscode": "1.100.0",
+    "@vscode/vsce": "3.9.2",
     "esbuild": "^0.28.1",
     "typescript": "^7.0.2"
   },
-  "activationEvents": [
-    "onCommand:flutterAirRun.helperDoctor",
-    "onCommand:flutterAirRun.qrSessionPreview",
-    "onCommand:flutterAirRun.pairDeviceWithQr",
-    "onView:flutterAirRun.actions"
-  ]
+  "author": {
+    "name": "Henry GOSSOU",
+    "url": "https://github.com/Hen17Ry"
+  },
+  "pricing": "Free",
+  "galleryBanner": {
+    "color": "#071127",
+    "theme": "dark"
+  },
+  "icon": "resources/icon.png"
 }
