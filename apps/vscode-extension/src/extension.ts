@@ -25,6 +25,10 @@ import {
   registerHelperDoctorCommand,
 } from './commands/helperDoctorCommand';
 
+import {
+  registerQrSessionPreviewCommand,
+} from './commands/qrSessionPreviewCommand';
+
 const EXTENSION_NAME = 'Flutter AirRun';
 
 const COMMANDS = {
@@ -157,6 +161,11 @@ export function activate(
       context,
       outputChannel,
     );
+  const qrSessionPreviewCommand =
+  registerQrSessionPreviewCommand(
+    context,
+    outputChannel,
+  );
 
   context.subscriptions.push(
     outputChannel,
@@ -167,6 +176,7 @@ export function activate(
     pairDeviceCommand,
     runWirelessCommand,
     helperDoctorCommand,
+    qrSessionPreviewCommand,
   );
 }
 
