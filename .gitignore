@@ -26,3 +26,6 @@ pnpm-debug.log*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Native helper builds
+native/**/build/
