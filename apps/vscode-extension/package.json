@@ -39,6 +39,11 @@
         "command": "flutterAirRun.devices",
         "title": "Devices",
         "category": "Flutter AirRun"
+      },
+      {
+        "command": "flutterAirRun.wirelessStatus",
+        "title": "Wireless Status",
+        "category": "Flutter AirRun"
       }
     ]
   },

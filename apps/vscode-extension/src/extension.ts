@@ -9,6 +9,11 @@ import {
   registerShowDevicesCommand,
 } from './commands/showDevicesCommand';
 
+import {
+  registerShowWirelessStatusCommand,
+} from './commands/showWirelessStatusCommand';
+
+
 const EXTENSION_NAME = 'Flutter AirRun';
 
 const COMMANDS = {
@@ -118,12 +123,18 @@ export function activate(
     registerShowDevicesCommand(
       outputChannel,
     );
+  
+  const wirelessStatusCommand =
+  registerShowWirelessStatusCommand(
+    outputChannel,
+  );
 
   context.subscriptions.push(
     outputChannel,
     helloCommand,
     doctorCommand,
     devicesCommand,
+    wirelessStatusCommand,
   );
 }
 
@@ -168,6 +179,7 @@ function writeToolInspection(
     }
   }
 }
+
 
 export function deactivate(): void {
   // VS Code libère automatiquement les ressources.
