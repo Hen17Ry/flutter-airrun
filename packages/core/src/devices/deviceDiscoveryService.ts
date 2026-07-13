@@ -1,4 +1,8 @@
 import {
+  WirelessTransportService,
+} from '../wireless/wirelessTransportService';
+
+import {
   AdbDeviceService,
   type AdbDevice,
 } from './adbDeviceService';
@@ -13,8 +17,10 @@ export interface DeviceDiscoveryReport {
   adbPath: string;
   flutterPath: string;
   adbDevices: readonly AdbDevice[];
-  flutterDevices: readonly FlutterDevice[];
-  androidFlutterDevices: readonly FlutterDevice[];
+  flutterDevices:
+    readonly FlutterDevice[];
+  androidFlutterDevices:
+    readonly FlutterDevice[];
 }
 
 export class DeviceDiscoveryService {
@@ -23,9 +29,15 @@ export class DeviceDiscoveryService {
       new AdbDeviceService(),
     private readonly flutterDeviceService =
       new FlutterDeviceService(),
+    private readonly transportService =
+      new WirelessTransportService(),
   ) {}
 
-  public async discover(): Promise<DeviceDiscoveryReport> {
+  public async discover():
+    Promise<DeviceDiscoveryReport> {
+    await this.transportService
+      .ensureTcpTransport();
+
     const [adbResult, flutterResult] =
       await Promise.all([
         this.adbDeviceService.listDevices(),
@@ -33,16 +45,21 @@ export class DeviceDiscoveryService {
       ]);
 
     const androidFlutterDevices =
-      flutterResult.devices.filter(device =>
-        this.isAndroidDevice(device),
+      flutterResult.devices.filter(
+        device =>
+          device.isSupported &&
+          this.isAndroidDevice(device),
       );
 
     return {
-      discoveredAt: new Date().toISOString(),
+      discoveredAt:
+        new Date().toISOString(),
       adbPath: adbResult.adbPath,
-      flutterPath: flutterResult.flutterPath,
+      flutterPath:
+        flutterResult.flutterPath,
       adbDevices: adbResult.devices,
-      flutterDevices: flutterResult.devices,
+      flutterDevices:
+        flutterResult.devices,
       androidFlutterDevices,
     };
   }

@@ -1,4 +1,8 @@
 import {
+  WirelessTransportService,
+} from '../wireless/wirelessTransportService';
+
+import {
   AdbDeviceService,
   type AdbDevice,
 } from './adbDeviceService';
@@ -25,10 +29,19 @@ export class WirelessFlutterDeviceService {
       new AdbDeviceService(),
     private readonly flutterDeviceService =
       new FlutterDeviceService(),
+    private readonly transportService =
+      new WirelessTransportService(),
   ) {}
 
   public async listDevices():
     Promise<WirelessFlutterDeviceList> {
+    /*
+     * Corrige automatiquement le cas où ADB expose
+     * un identifiant mDNS contenant un espace, que
+     * certaines versions de Flutter tronquent.
+     */
+    await this.transportService.ensureTcpTransport();
+
     const [adbResult, flutterResult] =
       await Promise.all([
         this.adbDeviceService.listDevices(),
@@ -45,9 +58,15 @@ export class WirelessFlutterDeviceService {
     const devices =
       flutterResult.devices.flatMap(
         flutterDevice => {
+          /*
+           * Les appareils fantômes créés par le bug Flutter
+           * sont explicitement ignorés.
+           */
           if (
             !flutterDevice.isSupported ||
-            !this.isAndroidDevice(flutterDevice)
+            !this.isAndroidDevice(
+              flutterDevice,
+            )
           ) {
             return [];
           }
@@ -76,9 +95,46 @@ export class WirelessFlutterDeviceService {
 
     return {
       adbPath: adbResult.adbPath,
-      flutterPath: flutterResult.flutterPath,
-      devices,
+      flutterPath:
+        flutterResult.flutterPath,
+      devices:
+        this.preferTcpDevices(devices),
     };
+  }
+
+  private preferTcpDevices(
+    devices:
+      readonly WirelessFlutterDevice[],
+  ): readonly WirelessFlutterDevice[] {
+    return [...devices].sort(
+      (first, second) =>
+        this.transportPriority(second) -
+        this.transportPriority(first),
+    );
+  }
+
+  private transportPriority(
+    device: WirelessFlutterDevice,
+  ): number {
+    const id =
+      device.flutterDevice.id;
+
+    if (
+      /^\[[^\]]+\]:\d+$/.test(id) ||
+      /^[^\s]+:\d+$/.test(id)
+    ) {
+      return 3;
+    }
+
+    if (
+      id.includes(
+        '._adb-tls-connect._tcp',
+      )
+    ) {
+      return 2;
+    }
+
+    return 1;
   }
 
   private isAndroidDevice(
@@ -98,15 +154,12 @@ export class WirelessFlutterDeviceService {
     flutterDevice: FlutterDevice,
   ): boolean {
     if (
-      adbDevice.serial === flutterDevice.id
+      adbDevice.serial ===
+      flutterDevice.id
     ) {
       return true;
     }
 
-    /*
-     * Compatibilité avec certaines versions ADB/Flutter
-     * qui peuvent normaliser différemment l’identifiant.
-     */
     return (
       adbDevice.serial.includes(
         flutterDevice.id,

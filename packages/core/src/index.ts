@@ -15,3 +15,5 @@ export * from './wireless/mdnsTrackService';
 export * from './wireless/wirelessStatusService';
 export * from './wireless/pairingService';
 export * from './wireless/wirelessRecoveryService';
+export * from './wireless/wirelessTransportService';
+export * from './wireless/adbSocketEndpointService';
