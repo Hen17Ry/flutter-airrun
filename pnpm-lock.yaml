@@ -6,9 +6,20 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
+      typescript:
+        specifier: ^7.0.2
+        version: 7.0.2
 
   apps/vscode-extension:
+    dependencies:
+      '@flutter-airrun/core':
+        specifier: workspace:*
+        version: link:../../packages/core
     devDependencies:
       '@types/node':
         specifier: ^22.20.1
@@ -22,6 +33,12 @@ importers:
       typescript:
         specifier: ^7.0.2
         version: 7.0.2
+
+  packages/core:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.20.1
+        version: 22.20.1
 
 packages:
 
