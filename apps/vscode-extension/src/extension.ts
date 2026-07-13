@@ -5,6 +5,10 @@ import {
 
 import * as vscode from 'vscode';
 
+import {
+  registerShowDevicesCommand,
+} from './commands/showDevicesCommand';
+
 const EXTENSION_NAME = 'Flutter AirRun';
 
 const COMMANDS = {
@@ -16,7 +20,9 @@ export function activate(
   context: vscode.ExtensionContext,
 ): void {
   const outputChannel =
-    vscode.window.createOutputChannel(EXTENSION_NAME);
+    vscode.window.createOutputChannel(
+      EXTENSION_NAME,
+    );
 
   const environmentService =
     new EnvironmentService();
@@ -25,89 +31,99 @@ export function activate(
     `${EXTENSION_NAME} activated successfully.`,
   );
 
-  const helloCommand = vscode.commands.registerCommand(
-    COMMANDS.hello,
-    async (): Promise<void> => {
-      await vscode.window.showInformationMessage(
-        'Flutter AirRun fonctionne correctement !',
-      );
-    },
-  );
+  const helloCommand =
+    vscode.commands.registerCommand(
+      COMMANDS.hello,
+      async (): Promise<void> => {
+        await vscode.window.showInformationMessage(
+          'Flutter AirRun fonctionne correctement !',
+        );
+      },
+    );
 
-  const doctorCommand = vscode.commands.registerCommand(
-    COMMANDS.doctor,
-    async (): Promise<void> => {
-      await vscode.window.withProgress(
-        {
-          location:
-            vscode.ProgressLocation.Notification,
-          title:
-            'Flutter AirRun analyse votre environnement…',
-          cancellable: false,
-        },
-        async () => {
-          outputChannel.clear();
+  const doctorCommand =
+    vscode.commands.registerCommand(
+      COMMANDS.doctor,
+      async (): Promise<void> => {
+        await vscode.window.withProgress(
+          {
+            location:
+              vscode.ProgressLocation.Notification,
+            title:
+              'Flutter AirRun analyse votre environnement…',
+            cancellable: false,
+          },
+          async () => {
+            outputChannel.clear();
 
-          outputChannel.appendLine(
-            '========================================',
-          );
-          outputChannel.appendLine(
-            'Flutter AirRun Doctor',
-          );
-          outputChannel.appendLine(
-            '========================================',
-          );
-
-          const report =
-            await environmentService.inspect();
-
-          outputChannel.appendLine(
-            `Inspection : ${report.inspectedAt}`,
-          );
-
-          outputChannel.appendLine('');
-          writeToolInspection(
-            outputChannel,
-            report.flutter,
-          );
-
-          outputChannel.appendLine('');
-          writeToolInspection(
-            outputChannel,
-            report.adb,
-          );
-
-          outputChannel.show(true);
-
-          if (
-            report.flutter.available &&
-            report.adb.available
-          ) {
-            const flutterVersion =
-              report.flutter.version ?? 'inconnue';
-
-            const adbVersion =
-              report.adb.version ?? 'inconnue';
-
-            await vscode.window.showInformationMessage(
-              `Environnement prêt — Flutter ${flutterVersion}, ADB ${adbVersion}.`,
+            outputChannel.appendLine(
+              '========================================',
+            );
+            outputChannel.appendLine(
+              'Flutter AirRun Doctor',
+            );
+            outputChannel.appendLine(
+              '========================================',
             );
 
-            return;
-          }
+            const report =
+              await environmentService.inspect();
 
-          await vscode.window.showErrorMessage(
-            'Flutter AirRun a détecté un problème. Consultez le panneau Output.',
-          );
-        },
-      );
-    },
-  );
+            outputChannel.appendLine(
+              `Inspection : ${report.inspectedAt}`,
+            );
+
+            outputChannel.appendLine('');
+            writeToolInspection(
+              outputChannel,
+              report.flutter,
+            );
+
+            outputChannel.appendLine('');
+            writeToolInspection(
+              outputChannel,
+              report.adb,
+            );
+
+            outputChannel.show(true);
+
+            if (
+              report.flutter.available &&
+              report.adb.available
+            ) {
+              const flutterVersion =
+                report.flutter.version ??
+                'inconnue';
+
+              const adbVersion =
+                report.adb.version ??
+                'inconnue';
+
+              await vscode.window.showInformationMessage(
+                `Environnement prêt — Flutter ${flutterVersion}, ADB ${adbVersion}.`,
+              );
+
+              return;
+            }
+
+            await vscode.window.showErrorMessage(
+              'Flutter AirRun a détecté un problème. Consultez le panneau Output.',
+            );
+          },
+        );
+      },
+    );
+
+  const devicesCommand =
+    registerShowDevicesCommand(
+      outputChannel,
+    );
 
   context.subscriptions.push(
     outputChannel,
     helloCommand,
     doctorCommand,
+    devicesCommand,
   );
 }
 
@@ -139,15 +155,20 @@ function writeToolInspection(
 
   if (tool.rawOutput) {
     outputChannel.appendLine('');
-    outputChannel.appendLine('Sortie brute :');
+    outputChannel.appendLine(
+      'Sortie brute :',
+    );
 
-    for (const line of tool.rawOutput.split(/\r?\n/)) {
-      outputChannel.appendLine(`  ${line}`);
+    for (
+      const line of tool.rawOutput.split(/\r?\n/)
+    ) {
+      outputChannel.appendLine(
+        `  ${line}`,
+      );
     }
   }
 }
 
 export function deactivate(): void {
-  // Les ressources de context.subscriptions
-  // sont automatiquement libérées.
+  // VS Code libère automatiquement les ressources.
 }

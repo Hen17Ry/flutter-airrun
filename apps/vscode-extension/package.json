@@ -34,6 +34,11 @@
         "command": "flutterAirRun.doctor",
         "title": "Doctor",
         "category": "Flutter AirRun"
+      },
+      {
+        "command": "flutterAirRun.devices",
+        "title": "Devices",
+        "category": "Flutter AirRun"
       }
     ]
   },
@@ -51,5 +56,8 @@
     "@types/vscode": "1.100.0",
     "esbuild": "^0.28.1",
     "typescript": "^7.0.2"
-  }
+  },
+  "activationEvents": [
+    
+  ]
 }
