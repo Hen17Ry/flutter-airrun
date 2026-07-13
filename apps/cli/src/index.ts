@@ -152,43 +152,73 @@ async function interactiveMenu():
     },
     {
       id: 'quit',
-      label: '×  Quitter',
+      label:
+        '×  Quitter',
     },
   ] as const;
 
-  const action = await choose(
-    'Que voulez-vous faire ?',
-    actions,
-    item => item.label,
-  );
+  while (true) {
+    const action = await choose(
+      'Que voulez-vous faire ?',
+      actions,
+      item => item.label,
+    );
 
-  switch (action.id) {
-    case 'run':
-      await runCommand([]);
-      return;
+    if (action.id === 'quit') {
+      console.log();
+      success(
+        'À bientôt sur Flutter AirRun.',
+      );
 
-    case 'pair-qr':
-      await pairQrCommand();
       return;
+    }
 
-    case 'pair-code':
-      await pairCodeCommand();
-      return;
+    try {
+      switch (action.id) {
+        case 'run':
+          await runCommand([]);
+          break;
 
-    case 'doctor':
-      await doctorCommand();
-      return;
+        case 'pair-qr':
+          await pairQrCommand();
+          break;
 
-    case 'devices':
-      await devicesCommand();
-      return;
+        case 'pair-code':
+          await pairCodeCommand();
+          break;
 
-    case 'status':
-      await statusCommand();
-      return;
+        case 'doctor':
+          await doctorCommand();
+          break;
 
-    case 'quit':
-      return;
+        case 'devices':
+          await devicesCommand();
+          break;
+
+        case 'status':
+          await statusCommand();
+          break;
+      }
+    } catch (error) {
+      console.log();
+
+      failure(
+        errorMessage(error),
+      );
+    }
+
+    /*
+     * Une action exécutée depuis le menu ne doit
+     * pas fermer toute la CLI. L’utilisateur peut
+     * revenir au menu ou quitter avec Ctrl+C.
+     */
+    console.log();
+
+    await ask(
+      'Appuyez sur Entrée pour revenir au menu…',
+    );
+
+    console.log();
   }
 }
 
