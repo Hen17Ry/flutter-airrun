@@ -31,3 +31,6 @@ Thumbs.db
 native/**/build/
 /artifacts/
 /apps/vscode-extension/bin/
+
+# Exécutables CLI autonomes générés
+/apps/cli/dist-bin/

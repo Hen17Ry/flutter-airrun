@@ -1,6 +1,10 @@
-import { createHash } from 'node:crypto';
-import { spawnSync } from 'node:child_process';
-import { constants } from 'node:fs';
+import {
+  createHash,
+} from 'node:crypto';
+
+import {
+  constants,
+} from 'node:fs';
 
 import {
   access,
@@ -8,11 +12,15 @@ import {
   copyFile,
   mkdir,
   readFile,
+  rm,
   stat,
 } from 'node:fs/promises';
 
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+
+import {
+  fileURLToPath,
+} from 'node:url';
 
 const scriptDirectory =
   path.dirname(
@@ -34,56 +42,127 @@ const repositoryRoot =
     '..',
   );
 
-if (
-  process.platform !== 'linux' ||
-  process.arch !== 'x64'
-) {
+const targets = {
+  'linux-x64': {
+    cliBinaryName:
+      'airrun',
+
+    posix:
+      true,
+  },
+
+  'linux-arm64': {
+    cliBinaryName:
+      'airrun',
+
+    posix:
+      true,
+  },
+
+  'win32-x64': {
+    cliBinaryName:
+      'airrun.exe',
+
+    posix:
+      false,
+  },
+
+  'win32-arm64': {
+    cliBinaryName:
+      'airrun.exe',
+
+    posix:
+      false,
+  },
+
+  'darwin-x64': {
+    cliBinaryName:
+      'airrun',
+
+    posix:
+      true,
+  },
+
+  'darwin-arm64': {
+    cliBinaryName:
+      'airrun',
+
+    posix:
+      true,
+  },
+};
+
+const targetId =
+  process.env[
+    'AIRRUN_TARGET'
+  ]?.trim()
+  || detectCurrentTarget();
+
+const target =
+  targets[targetId];
+
+if (!target) {
   throw new Error(
     [
-      'Ce premier paquet supporte uniquement Linux x86-64.',
-      `Plateforme actuelle : ${process.platform}-${process.arch}`,
+      `Cible Flutter AirRun inconnue : ${targetId}`,
+      '',
+      'Cibles disponibles :',
+      ...Object.keys(targets)
+        .map(
+          value =>
+            `- ${value}`,
+        ),
     ].join('\n'),
   );
 }
 
-const sourcePath =
+const cliSourcePath =
   path.join(
     repositoryRoot,
-    'native',
-    'airrun-pair-helper',
-    'build',
-    'airrun-pair-helper',
+    'apps',
+    'cli',
+    'dist-bin',
+    targetId,
+    target.cliBinaryName,
+  );
+
+const packagedBinRoot =
+  path.join(
+    extensionRoot,
+    'bin',
   );
 
 const targetDirectory =
   path.join(
-    extensionRoot,
-    'bin',
-    'linux-x86_64',
+    packagedBinRoot,
+    targetId,
   );
 
-const targetPath =
+const cliTargetPath =
   path.join(
     targetDirectory,
-    'airrun-pair-helper',
+    target.cliBinaryName,
   );
 
-try {
-  await access(
-    sourcePath,
-    constants.X_OK,
-  );
-} catch {
-  throw new Error(
-    [
-      'Le helper natif est absent ou non exécutable.',
-      `Chemin attendu : ${sourcePath}`,
-      '',
-      'Compile-le avec :',
-      'pnpm helper:build',
-    ].join('\n'),
-  );
-}
+await requireFile(
+  cliSourcePath,
+  'CLI autonome AirRun',
+);
+
+/*
+ * Chaque VSIX contient uniquement la CLI
+ * autonome correspondant à sa plateforme.
+ *
+ * La génération QR sécurisée est maintenant
+ * intégrée au code TypeScript de la CLI.
+ */
+await rm(
+  packagedBinRoot,
+  {
+    recursive: true,
+    force: true,
+  },
+);
 
 await mkdir(
   targetDirectory,
@@ -93,95 +172,109 @@ await mkdir(
 );
 
 await copyFile(
-  sourcePath,
-  targetPath,
+  cliSourcePath,
+  cliTargetPath,
 );
 
-await chmod(
-  targetPath,
-  0o755,
-);
-
-/*
- * Le binaire de développement contient encore
- * ses symboles de débogage. Nous les retirons
- * uniquement de la copie distribuée.
- */
-const stripResult =
-  spawnSync(
-    'strip',
-    [
-      '--strip-unneeded',
-      targetPath,
-    ],
-    {
-      stdio: 'inherit',
-    },
-  );
-
-if (
-  stripResult.error &&
-  stripResult.error.code !==
-    'ENOENT'
-) {
-  throw stripResult.error;
-}
-
-if (
-  stripResult.error?.code ===
-  'ENOENT'
-) {
-  console.warn(
-    'Avertissement : strip est absent, le binaire ne sera pas allégé.',
+if (target.posix) {
+  await chmod(
+    cliTargetPath,
+    0o755,
   );
 }
-
-if (
-  stripResult.status !== null &&
-  stripResult.status !== 0
-) {
-  console.warn(
-    `Avertissement : strip a retourné le code ${stripResult.status}.`,
-  );
-}
-
-await chmod(
-  targetPath,
-  0o755,
-);
-
-const binary =
-  await readFile(
-    targetPath,
-  );
-
-const metadata =
-  await stat(
-    targetPath,
-  );
-
-const checksum =
-  createHash('sha256')
-    .update(binary)
-    .digest('hex');
 
 console.log();
 console.log(
-  'Helper Flutter AirRun préparé.',
+  `Paquet Flutter AirRun préparé pour ${targetId}.`,
 );
 
-console.log(
-  `Source      : ${sourcePath}`,
+await printArtifact(
+  'CLI AirRun autonome',
+  cliSourcePath,
+  cliTargetPath,
 );
 
-console.log(
-  `Destination : ${targetPath}`,
-);
+async function requireFile(
+  filePath,
+  label,
+) {
+  try {
+    await access(
+      filePath,
+      constants.F_OK,
+    );
+  } catch {
+    throw new Error(
+      [
+        `${label} introuvable.`,
+        `Cible : ${targetId}`,
+        `Chemin attendu : ${filePath}`,
+        '',
+        'Reconstruisez les exécutables avec :',
+        'pnpm --filter @flutter-airrun/cli build:executables',
+      ].join('\n'),
+    );
+  }
+}
 
-console.log(
-  `Taille      : ${metadata.size} octets`,
-);
+async function printArtifact(
+  label,
+  sourcePath,
+  destinationPath,
+) {
+  const content =
+    await readFile(
+      destinationPath,
+    );
 
-console.log(
-  `SHA-256     : ${checksum}`,
-);
+  const metadata =
+    await stat(
+      destinationPath,
+    );
+
+  const checksum =
+    createHash('sha256')
+      .update(content)
+      .digest('hex');
+
+  console.log();
+  console.log(label);
+
+  console.log(
+    `Source      : ${sourcePath}`,
+  );
+
+  console.log(
+    `Destination : ${destinationPath}`,
+  );
+
+  console.log(
+    `Taille      : ${metadata.size} octets`,
+  );
+
+  console.log(
+    `SHA-256     : ${checksum}`,
+  );
+}
+
+function detectCurrentTarget() {
+  const key =
+    `${process.platform}-${process.arch}`;
+
+  if (
+    Object.hasOwn(
+      targets,
+      key,
+    )
+  ) {
+    return key;
+  }
+
+  throw new Error(
+    [
+      'La plateforme actuelle ne correspond à aucune cible AirRun.',
+      `Détection : ${key}`,
+      'Définissez AIRRUN_TARGET explicitement.',
+    ].join('\n'),
+  );
+}

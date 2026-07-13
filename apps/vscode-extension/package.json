@@ -1,7 +1,7 @@
 {
   "name": "flutter-airrun",
   "displayName": "Flutter AirRun",
-  "description": "Connect, pair and run Flutter applications on Android devices wirelessly.",
+  "description": "Pair, connect and run Flutter apps wirelessly on Android from VS Code or the interactive AirRun CLI.",
   "version": "0.1.0",
   "publisher": "flutter-airrun",
   "license": "MIT",
@@ -14,16 +14,16 @@
   ],
   "keywords": [
     "flutter",
+    "dart",
     "android",
     "adb",
+    "wireless-debugging",
     "wireless",
-    "debugging",
+    "vscode",
+    "cli",
     "qr-code",
+    "hot-reload",
     "developer-tools"
-  ],
-  "activationEvents": [
-    "onCommand:flutterAirRun.hello",
-    "onView:flutterAirRun"
   ],
   "contributes": {
     "commands": [
@@ -54,7 +54,7 @@
       },
       {
         "command": "flutterAirRun.helperDoctor",
-        "title": "QR Helper Doctor",
+        "title": "QR Generator Doctor",
         "category": "Flutter AirRun"
       },
       {
@@ -72,19 +72,38 @@
         "title": "Refresh AirRun Actions",
         "category": "Flutter AirRun",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "flutterAirRun.openCli",
+        "title": "Open AirRun CLI — Recommended",
+        "category": "Flutter AirRun",
+        "icon": "$(terminal)"
+      },
+      {
+        "command": "flutterAirRun.installCli",
+        "title": "Install AirRun CLI",
+        "category": "Flutter AirRun",
+        "icon": "$(cloud-download)"
+      },
+      {
+        "command": "flutterAirRun.checkCli",
+        "title": "Check AirRun CLI",
+        "category": "Flutter AirRun",
+        "icon": "$(check)"
+      },
+      {
+        "command": "flutterAirRun.updateCli",
+        "title": "Update AirRun CLI",
+        "category": "Flutter AirRun",
+        "icon": "$(sync)"
+      },
+      {
+        "command": "flutterAirRun.uninstallCli",
+        "title": "Uninstall AirRun CLI",
+        "category": "Flutter AirRun",
+        "icon": "$(trash)"
       }
     ],
-    "configuration": {
-      "title": "Flutter AirRun",
-      "properties": {
-        "flutterAirRun.helperPath": {
-          "type": "string",
-          "default": "",
-          "scope": "machine",
-          "description": "Optional absolute path to the Flutter AirRun native QR pairing helper."
-        }
-      }
-    },
     "viewsContainers": {
       "activitybar": [
         {
@@ -121,7 +140,7 @@
     "clean": "rm -rf dist",
     "package:prepare": "node scripts/prepare-package.mjs",
     "vscode:prepublish": "pnpm run build && pnpm run package:prepare",
-    "package:vsix": "mkdir -p ../../artifacts && vsce package --target linux-x64 --no-dependencies --out ../../artifacts/flutter-airrun-${npm_package_version}-linux-x64.vsix",
+    "package:vsix": "node scripts/package-vsix.mjs",
     "package:list": "vsce ls --no-dependencies"
   },
   "dependencies": {
@@ -145,5 +164,6 @@
     "color": "#071127",
     "theme": "dark"
   },
-  "icon": "resources/icon.png"
+  "icon": "resources/icon.png",
+  "main": "./dist/extension.js"
 }

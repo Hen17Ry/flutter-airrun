@@ -11,7 +11,7 @@ import * as path from 'node:path';
 import {
   DeviceDiscoveryService,
   ExecutableLocator,
-  NativeHelperService,
+  QrPairingSessionService,
   PairingService,
   ProcessRunner,
   QrPairingService,
@@ -23,9 +23,6 @@ import {
 
 import * as QRCode from 'qrcode';
 
-import {
-  resolveCliHelperPath,
-} from './helperPathResolver';
 
 import {
   printBrandBanner,
@@ -237,11 +234,9 @@ async function doctorCommand():
   const [
     flutterPath,
     adbPath,
-    helperResolution,
   ] = await Promise.all([
     locator.findFlutter(),
     locator.findAdb(),
-    resolveCliHelperPath(),
   ]);
 
   let environmentReady = true;
@@ -304,34 +299,26 @@ async function doctorCommand():
     );
   }
 
-  if (
-    helperResolution.executablePath
-  ) {
-    try {
-      const helper =
-        new NativeHelperService(
-          helperResolution
-            .executablePath,
-        );
+  try {
+    const qrGenerator =
+      new QrPairingSessionService();
 
-      const doctor =
-        await helper.doctor();
+    const qrDoctor =
+      qrGenerator.doctor();
 
-      success(
-        `Helper QR ${doctor.helperVersion} — ${doctor.platform}/${doctor.architecture}`,
-      );
-    } catch (error) {
-      environmentReady = false;
-
-      failure(
-        errorMessage(error),
-      );
-    }
-  } else {
+    success(
+      [
+        'Générateur QR TypeScript',
+        qrDoctor.generatorVersion,
+        '—',
+        `${qrDoctor.platform}/${qrDoctor.architecture}`,
+      ].join(' '),
+    );
+  } catch (error) {
     environmentReady = false;
 
     failure(
-      'Le helper QR est introuvable.',
+      errorMessage(error),
     );
   }
 
@@ -555,31 +542,20 @@ async function pairQrCommand():
     'Association par QR code',
   );
 
-  const resolution =
-    await resolveCliHelperPath();
+  const qrGenerator =
+    new QrPairingSessionService();
 
-  if (!resolution.executablePath) {
+  const qrDoctor =
+    qrGenerator.doctor();
+
+  if (qrDoctor.status !== 'ok') {
     throw new Error(
-      'Le helper QR est introuvable.',
-    );
-  }
-
-  const helper =
-    new NativeHelperService(
-      resolution.executablePath,
-    );
-
-  const doctor =
-    await helper.doctor();
-
-  if (doctor.status !== 'ok') {
-    throw new Error(
-      'Le helper QR n’est pas prêt.',
+      'Le générateur QR TypeScript n’est pas prêt.',
     );
   }
 
   const session =
-    await helper.createQrSession();
+    qrGenerator.createQrSession();
 
   const qr =
     await QRCode.toString(
@@ -1083,7 +1059,7 @@ Utilisation :
   airrun <commande>
 
 Commandes :
-  doctor                 Vérifier Flutter, ADB et le helper QR
+  doctor                 Vérifier Flutter, ADB et le générateur QR
   devices                Afficher les appareils disponibles
   status                 Vérifier mDNS et le débogage sans fil
   pair qr                Associer un téléphone par QR code

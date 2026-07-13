@@ -9,7 +9,8 @@
   "scripts": {
     "check": "tsc -p tsconfig.json --noEmit",
     "build": "pnpm --filter @flutter-airrun/core build && node esbuild.mjs",
-    "start": "node dist/airrun.cjs"
+    "start": "node dist/airrun.cjs",
+    "build:executables": "pnpm run build && node scripts/build-executables.mjs"
   },
   "dependencies": {
     "@flutter-airrun/core": "workspace:*",

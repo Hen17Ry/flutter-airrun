@@ -1,4 +1,9 @@
 import {
+  offerCliInstallation,
+  registerCliCommands,
+} from './commands/cliCommands';
+
+import {
   EnvironmentService,
   type ToolInspection,
 } from '@flutter-airrun/core';
@@ -47,6 +52,24 @@ const COMMANDS = {
 export function activate(
   context: vscode.ExtensionContext,
 ): void {
+
+  context.subscriptions.push(
+    ...registerCliCommands(
+      context,
+    ),
+  );
+
+  void offerCliInstallation(
+    context,
+  ).catch(
+    error => {
+      console.error(
+        'AirRun CLI onboarding failed:',
+        error,
+      );
+    },
+  );
+
   const outputChannel =
     vscode.window.createOutputChannel(
       EXTENSION_NAME,
@@ -177,7 +200,6 @@ export function activate(
 
   const qrPairDeviceCommand =
   registerQrPairDeviceCommand(
-    context,
     outputChannel,
   );
 

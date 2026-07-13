@@ -171,6 +171,57 @@ export class AirRunActionsProvider
         .toLowerCase();
 
     if (
+      contribution.command ===
+      'flutterAirRun.openCli'
+    ) {
+      return {
+        command:
+          contribution.command,
+        title:
+          'Open AirRun CLI',
+        description:
+          'Recommended workflow for Flutter AirRun',
+        icon:
+          'terminal',
+        priority: 0,
+      };
+    }
+
+    if (
+      contribution.command ===
+      'flutterAirRun.installCli'
+    ) {
+      return {
+        command:
+          contribution.command,
+        title:
+          'Install AirRun CLI',
+        description:
+          'Install the airrun command for this user',
+        icon:
+          'cloud-download',
+        priority: 1,
+      };
+    }
+
+    if (
+      contribution.command ===
+      'flutterAirRun.checkCli'
+    ) {
+      return {
+        command:
+          contribution.command,
+        title:
+          'Check AirRun CLI',
+        description:
+          'Check installation and version',
+        icon:
+          'check',
+        priority: 2,
+      };
+    }
+
+    if (
       searchableValue.includes(
         'pairdevicewithqr',
       ) ||
@@ -214,9 +265,20 @@ export class AirRunActionsProvider
     }
 
     if (
-      searchableValue.includes(
-        'run',
-      )
+      contribution.command
+        .toLowerCase()
+        .endsWith(
+          'runwireless',
+        ) ||
+      /\brun\b/.test(
+        contribution.title
+          .toLowerCase(),
+      ) ||
+      contribution.title
+        .toLowerCase()
+        .includes(
+          'lancer',
+        )
     ) {
       return {
         command:

@@ -14,9 +14,6 @@
     "test": "pnpm -r --if-present run test",
     "lint": "pnpm -r --if-present run lint",
     "clean": "pnpm -r --if-present run clean",
-    "helper:configure": "cmake -S native/airrun-pair-helper -B native/airrun-pair-helper/build -G Ninja -DCMAKE_BUILD_TYPE=Debug",
-    "helper:build": "cmake --build native/airrun-pair-helper/build",
-    "helper:doctor": "native/airrun-pair-helper/build/airrun-pair-helper doctor",
     "cli:check": "pnpm --filter @flutter-airrun/cli check",
     "cli:build": "pnpm --filter @flutter-airrun/cli build",
     "cli": "pnpm --filter @flutter-airrun/cli start --"

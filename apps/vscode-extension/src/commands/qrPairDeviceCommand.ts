@@ -1,6 +1,6 @@
 import {
-  NativeHelperService,
   QrPairingService,
+  QrPairingSessionService,
   type QrPairingStage,
 } from '@flutter-airrun/core';
 
@@ -10,15 +10,10 @@ import {
   showQrSessionPanel,
 } from '../panels/qrSessionPanel';
 
-import {
-  resolveHelperPath,
-} from '../services/helperPathResolver';
-
 export const QR_PAIR_DEVICE_COMMAND =
   'flutterAirRun.pairDeviceWithQr';
 
 export function registerQrPairDeviceCommand(
-  context: vscode.ExtensionContext,
   outputChannel: vscode.OutputChannel,
 ): vscode.Disposable {
   return vscode.commands.registerCommand(
@@ -28,14 +23,17 @@ export function registerQrPairDeviceCommand(
         {
           location:
             vscode.ProgressLocation.Notification,
+
           title:
             'Flutter AirRun — Association QR',
-          cancellable: true,
+
+          cancellable:
+            true,
         },
         async (
           progress,
           cancellationToken,
-        ) => {
+        ): Promise<void> => {
           const controller =
             new AbortController();
 
@@ -58,41 +56,36 @@ export function registerQrPairDeviceCommand(
           try {
             progress.report({
               message:
-                'Préparation de la session…',
+                'Préparation de la session QR…',
             });
 
-            const resolution =
-              await resolveHelperPath(
-                context,
-              );
+            const qrGenerator =
+              new QrPairingSessionService();
+
+            const qrDoctor =
+              qrGenerator.doctor();
 
             if (
-              !resolution.executablePath
+              qrDoctor.status !==
+              'ok'
             ) {
               throw new Error(
-                'Le helper natif QR est introuvable.',
-              );
-            }
-
-            const helper =
-              new NativeHelperService(
-                resolution.executablePath,
-              );
-
-            const doctor =
-              await helper.doctor();
-
-            if (
-              doctor.status !== 'ok'
-            ) {
-              throw new Error(
-                'Le helper natif QR n’est pas prêt.',
+                'Le générateur QR TypeScript n’est pas prêt.',
               );
             }
 
             const session =
-              await helper
+              qrGenerator
                 .createQrSession();
+
+            outputChannel.appendLine(
+              [
+                '[QR]',
+                'Session générée avec',
+                `QrPairingSessionService ${qrDoctor.generatorVersion}`,
+                `sur ${qrDoctor.platform}/${qrDoctor.architecture}.`,
+              ].join(' '),
+            );
 
             panel =
               await showQrSessionPanel(
@@ -117,15 +110,19 @@ export function registerQrPairDeviceCommand(
                 {
                   signal:
                     controller.signal,
-                  timeoutMs: 120_000,
-                  onStage: stage => {
-                    progress.report({
-                      message:
-                        stageMessage(
-                          stage,
-                        ),
-                    });
-                  },
+
+                  timeoutMs:
+                    120_000,
+
+                  onStage:
+                    stage => {
+                      progress.report({
+                        message:
+                          stageMessage(
+                            stage,
+                          ),
+                      });
+                    },
                 },
               );
 
@@ -134,7 +131,8 @@ export function registerQrPairDeviceCommand(
               undefined;
 
             panel.dispose();
-            panel = undefined;
+            panel =
+              undefined;
 
             outputChannel.appendLine(
               '========================================',
@@ -149,6 +147,10 @@ export function registerQrPairDeviceCommand(
             );
 
             outputChannel.appendLine(
+              `Générateur  : TypeScript ${qrDoctor.generatorVersion}`,
+            );
+
+            outputChannel.appendLine(
               `Service     : ${result.instanceName}`,
             );
 
@@ -157,11 +159,19 @@ export function registerQrPairDeviceCommand(
             );
 
             outputChannel.appendLine(
-              `Associé     : ${result.paired ? 'oui' : 'non'}`,
+              `Associé     : ${
+                result.paired
+                  ? 'oui'
+                  : 'non'
+              }`,
             );
 
             outputChannel.appendLine(
-              `Connecté    : ${result.connected ? 'oui' : 'non'}`,
+              `Connecté    : ${
+                result.connected
+                  ? 'oui'
+                  : 'non'
+              }`,
             );
 
             if (result.device) {
@@ -181,9 +191,11 @@ export function registerQrPairDeviceCommand(
               `ADB         : ${result.adbOutput}`,
             );
 
-            outputChannel.show(true);
+            outputChannel.show(
+              true,
+            );
 
-            void vscode.window
+            await vscode.window
               .showInformationMessage(
                 'Téléphone associé avec succès par QR code.',
               );
@@ -195,14 +207,15 @@ export function registerQrPairDeviceCommand(
 
             const wasCancelled =
               controller.signal.aborted ||
-              /annulée/i.test(message);
+              /annulée|annulé|cancelled|canceled/i
+                .test(message);
 
             if (wasCancelled) {
               outputChannel.appendLine(
                 '[QR] Association annulée.',
               );
 
-              void vscode.window
+              await vscode.window
                 .showInformationMessage(
                   'Association QR annulée.',
                 );
@@ -214,9 +227,11 @@ export function registerQrPairDeviceCommand(
               `[QR] ERREUR : ${message}`,
             );
 
-            outputChannel.show(true);
+            outputChannel.show(
+              true,
+            );
 
-            void vscode.window
+            await vscode.window
               .showErrorMessage(
                 `Flutter AirRun : ${message}`,
               );
@@ -227,7 +242,8 @@ export function registerQrPairDeviceCommand(
             panelDisposable
               ?.dispose();
 
-            panel?.dispose();
+            panel
+              ?.dispose();
           }
         },
       );
@@ -240,15 +256,31 @@ function stageMessage(
 ): string {
   switch (stage) {
     case 'waiting-for-scan':
-      return 'Scannez le QR avec le téléphone…';
+      return (
+        'Scannez le QR avec le téléphone…'
+      );
 
     case 'service-found':
-      return 'Téléphone détecté sur le réseau…';
+      return (
+        'Téléphone détecté sur le réseau…'
+      );
 
     case 'pairing':
-      return 'Association sécurisée en cours…';
+      return (
+        'Association sécurisée en cours…'
+      );
 
     case 'paired':
-      return 'Association réussie…';
+      return (
+        'Association réussie…'
+      );
+
+    default: {
+      const exhaustiveCheck:
+        never =
+          stage;
+
+      return exhaustiveCheck;
+    }
   }
 }

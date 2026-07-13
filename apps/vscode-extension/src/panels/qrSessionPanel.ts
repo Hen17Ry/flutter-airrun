@@ -1,334 +1,628 @@
 import {
-  randomBytes,
-} from 'node:crypto';
-
-import type {
-  NativeHelperQrSession,
+  type QrPairingSession,
 } from '@flutter-airrun/core';
 
 import * as QRCode from 'qrcode';
-import * as vscode from 'vscode';
 
-const QR_SESSION_VIEW_TYPE =
-  'flutterAirRun.qrSession';
+import * as vscode from 'vscode';
 
 export type QrSessionPanelMode =
   | 'preview'
   | 'pairing';
 
 export async function showQrSessionPanel(
-  session: NativeHelperQrSession,
+  session: QrPairingSession,
   mode: QrSessionPanelMode =
     'preview',
 ): Promise<vscode.WebviewPanel> {
-  const qrSvg = await QRCode.toString(
-    session.qrPayload,
-    {
-      type: 'svg',
-      errorCorrectionLevel: 'M',
-      margin: 2,
-      width: 320,
-    },
-  );
-
   const title =
     mode === 'pairing'
-      ? 'Flutter AirRun — Pairing QR'
-      : 'Flutter AirRun — QR Session';
+      ? 'Flutter AirRun — Association QR'
+      : 'Flutter AirRun — Prévisualisation QR';
 
   const panel =
     vscode.window.createWebviewPanel(
-      QR_SESSION_VIEW_TYPE,
+      'flutterAirRun.qrSession',
       title,
-      vscode.ViewColumn.Beside,
+      vscode.ViewColumn.Active,
       {
-        enableScripts: false,
-        retainContextWhenHidden:
+        enableScripts:
           false,
+
+        retainContextWhenHidden:
+          true,
       },
     );
 
-  panel.webview.html = buildHtml(
-    session,
-    qrSvg,
-    mode,
-  );
+  const qrDataUrl =
+    await QRCode.toDataURL(
+      session.qrPayload,
+      {
+        type:
+          'image/png',
+
+        width:
+          480,
+
+        margin:
+          2,
+
+        errorCorrectionLevel:
+          'M',
+      },
+    );
+
+  panel.webview.html =
+    createWebviewHtml(
+      panel.webview,
+      session,
+      qrDataUrl,
+      mode,
+    );
 
   return panel;
 }
 
-function buildHtml(
-  session: NativeHelperQrSession,
-  qrSvg: string,
+function createWebviewHtml(
+  webview: vscode.Webview,
+  session: QrPairingSession,
+  qrDataUrl: string,
   mode: QrSessionPanelMode,
 ): string {
-  const nonce =
-    randomBytes(18).toString(
-      'base64',
-    );
-
-  const serviceName =
+  const escapedServiceName =
     escapeHtml(
       session.serviceName,
     );
 
-  const helperVersion =
+  const escapedGeneratorVersion =
     escapeHtml(
-      session.helperVersion,
+      session.generatorVersion,
     );
 
-  const isPairing =
-    mode === 'pairing';
+  const heading =
+    mode === 'pairing'
+      ? 'Associer le téléphone'
+      : 'Session QR AirRun';
 
-  const subtitle = isPairing
-    ? 'Scannez ce QR depuis les paramètres de débogage sans fil de votre téléphone.'
-    : 'Prévisualisation de la session générée par Flutter AirRun.';
+  const description =
+    mode === 'pairing'
+      ? [
+          'Sur votre téléphone Android, ouvrez',
+          'Débogage sans fil, puis sélectionnez',
+          'Associer un appareil avec un code QR.',
+        ].join(' ')
+      : [
+          'Cette session QR a été générée',
+          'localement par Flutter AirRun.',
+        ].join(' ');
 
-  const notice = isPairing
-    ? `
-      <strong>Association en attente.</strong>
-      Sur le téléphone, ouvrez
-      <em>Débogage sans fil</em>, puis
-      <em>Associer un appareil avec un code QR</em>.
-      Le panneau se fermera automatiquement après le succès.
-    `
-    : `
-      <strong>Prévisualisation uniquement.</strong>
-      Aucune association ne sera lancée depuis cette commande.
-    `;
+  const statusMessage =
+    mode === 'pairing'
+      ? 'AirRun attend le scan du téléphone…'
+      : 'Prévisualisation uniquement';
 
-  const noticeClass =
-    isPairing
-      ? 'notice active'
-      : 'notice';
+  return /* html */ `
+    <!DOCTYPE html>
+    <html lang="fr">
+      <head>
+        <meta charset="UTF-8" />
 
-  return `<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8">
+        <meta
+          http-equiv="Content-Security-Policy"
+          content="
+            default-src 'none';
+            img-src ${webview.cspSource} data:;
+            style-src 'unsafe-inline';
+          "
+        />
 
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1.0"
+        />
 
-  <meta
-    http-equiv="Content-Security-Policy"
-    content="
-      default-src 'none';
-      style-src 'nonce-${nonce}';
-    "
-  >
+        <title>
+          ${escapeHtml(heading)}
+        </title>
 
-  <title>Flutter AirRun</title>
+        <style>
+          :root {
+            color-scheme:
+              light dark;
+          }
 
-  <style nonce="${nonce}">
-    :root {
-      color-scheme: light dark;
-    }
+          * {
+            box-sizing:
+              border-box;
+          }
 
-    * {
-      box-sizing: border-box;
-    }
+          body {
+            margin:
+              0;
 
-    body {
-      margin: 0;
-      padding: 32px 20px;
-      color: var(--vscode-foreground);
-      background:
-        var(--vscode-editor-background);
-      font-family:
-        var(--vscode-font-family);
-    }
+            padding:
+              32px 20px;
 
-    main {
-      width: min(100%, 620px);
-      margin: 0 auto;
-    }
+            color:
+              var(
+                --vscode-foreground
+              );
 
-    header {
-      margin-bottom: 24px;
-      text-align: center;
-    }
+            background:
+              var(
+                --vscode-editor-background
+              );
 
-    h1 {
-      margin: 0 0 8px;
-      font-size: 24px;
-    }
+            font-family:
+              var(
+                --vscode-font-family
+              );
+          }
 
-    .subtitle {
-      margin: 0;
-      color:
-        var(--vscode-descriptionForeground);
-      line-height: 1.5;
-    }
+          .page {
+            width:
+              min(
+                100%,
+                620px
+              );
 
-    .card {
-      padding: 24px;
-      border:
-        1px solid
-        var(--vscode-panel-border);
-      border-radius: 12px;
-      background:
-        var(--vscode-sideBar-background);
-    }
+            margin:
+              0 auto;
+          }
 
-    .qr-container {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 352px;
-      padding: 16px;
-      overflow: hidden;
-      border-radius: 10px;
-      background: white;
-    }
+          .header {
+            margin-bottom:
+              24px;
 
-    .qr-container svg {
-      display: block;
-      width: min(320px, 100%);
-      height: auto;
-    }
+            text-align:
+              center;
+          }
 
-    dl {
-      display: grid;
-      grid-template-columns:
-        minmax(110px, auto) 1fr;
-      gap: 10px 16px;
-      margin: 24px 0 0;
-    }
+          .eyebrow {
+            margin:
+              0 0 8px;
 
-    dt {
-      color:
-        var(--vscode-descriptionForeground);
-    }
+            color:
+              var(
+                --vscode-descriptionForeground
+              );
 
-    dd {
-      min-width: 0;
-      margin: 0;
-      overflow-wrap: anywhere;
-      font-family:
-        var(--vscode-editor-font-family);
-    }
+            font-size:
+              12px;
 
-    .notice {
-      margin-top: 20px;
-      padding: 14px 16px;
-      border:
-        1px solid
-        var(--vscode-inputValidation-warningBorder);
-      border-radius: 8px;
-      background:
-        var(--vscode-inputValidation-warningBackground);
-      color:
-        var(--vscode-inputValidation-warningForeground);
-      line-height: 1.55;
-    }
+            font-weight:
+              700;
 
-    .notice.active {
-      border-color:
-        var(--vscode-testing-iconPassed);
-    }
+            letter-spacing:
+              0.12em;
 
-    .security {
-      margin-top: 16px;
-      color:
-        var(--vscode-descriptionForeground);
-      font-size: 12px;
-      line-height: 1.5;
-      text-align: center;
-    }
+            text-transform:
+              uppercase;
+          }
 
-    @media (max-width: 480px) {
-      body {
-        padding: 20px 12px;
-      }
+          h1 {
+            margin:
+              0;
 
-      .card {
-        padding: 16px;
-      }
+            font-size:
+              28px;
 
-      dl {
-        grid-template-columns: 1fr;
-        gap: 4px;
-      }
+            line-height:
+              1.2;
+          }
 
-      dd {
-        margin-bottom: 10px;
-      }
-    }
-  </style>
-</head>
+          .description {
+            max-width:
+              520px;
 
-<body>
-  <main>
-    <header>
-      <h1>Session QR ADB</h1>
-      <p class="subtitle">
-        ${escapeHtml(subtitle)}
-      </p>
-    </header>
+            margin:
+              12px auto 0;
 
-    <section class="card">
-      <div
-        class="qr-container"
-        role="img"
-        aria-label="Code QR de la session ADB"
-      >
-        ${qrSvg}
-      </div>
+            color:
+              var(
+                --vscode-descriptionForeground
+              );
 
-      <dl>
-        <dt>Service</dt>
-        <dd>${serviceName}</dd>
+            font-size:
+              14px;
 
-        <dt>Helper</dt>
-        <dd>${helperVersion}</dd>
+            line-height:
+              1.6;
+          }
 
-        <dt>Protocole</dt>
-        <dd>${session.protocolVersion}</dd>
-      </dl>
+          .qr-card {
+            padding:
+              24px;
 
-      <div class="${noticeClass}">
-        ${notice}
-      </div>
+            border:
+              1px solid
+              var(
+                --vscode-panel-border
+              );
 
-      <p class="security">
-        Le secret reste uniquement en mémoire
-        et dans le QR. Il n’est pas écrit dans
-        les journaux de Flutter AirRun.
-      </p>
-    </section>
-  </main>
-</body>
-</html>`;
+            border-radius:
+              16px;
+
+            background:
+              var(
+                --vscode-sideBar-background
+              );
+
+            box-shadow:
+              0 12px 32px
+              rgba(
+                0,
+                0,
+                0,
+                0.16
+              );
+
+            text-align:
+              center;
+          }
+
+          .qr-wrapper {
+            display:
+              inline-flex;
+
+            align-items:
+              center;
+
+            justify-content:
+              center;
+
+            width:
+              min(
+                100%,
+                420px
+              );
+
+            padding:
+              18px;
+
+            border-radius:
+              14px;
+
+            background:
+              #ffffff;
+          }
+
+          .qr-wrapper img {
+            display:
+              block;
+
+            width:
+              100%;
+
+            height:
+              auto;
+          }
+
+          .status {
+            display:
+              inline-flex;
+
+            align-items:
+              center;
+
+            gap:
+              8px;
+
+            margin-top:
+              20px;
+
+            padding:
+              8px 12px;
+
+            border-radius:
+              999px;
+
+            color:
+              var(
+                --vscode-notificationsInfoIcon-foreground
+              );
+
+            background:
+              var(
+                --vscode-badge-background
+              );
+
+            font-size:
+              13px;
+
+            font-weight:
+              600;
+          }
+
+          .status-dot {
+            width:
+              8px;
+
+            height:
+              8px;
+
+            border-radius:
+              50%;
+
+            background:
+              currentColor;
+          }
+
+          .details {
+            display:
+              grid;
+
+            gap:
+              12px;
+
+            margin-top:
+              20px;
+
+            text-align:
+              left;
+          }
+
+          .detail {
+            padding:
+              12px 14px;
+
+            border:
+              1px solid
+              var(
+                --vscode-panel-border
+              );
+
+            border-radius:
+              10px;
+
+            background:
+              var(
+                --vscode-editor-background
+              );
+          }
+
+          .detail-label {
+            display:
+              block;
+
+            margin-bottom:
+              5px;
+
+            color:
+              var(
+                --vscode-descriptionForeground
+              );
+
+            font-size:
+              11px;
+
+            font-weight:
+              700;
+
+            letter-spacing:
+              0.08em;
+
+            text-transform:
+              uppercase;
+          }
+
+          .detail-value {
+            display:
+              block;
+
+            overflow-wrap:
+              anywhere;
+
+            font-family:
+              var(
+                --vscode-editor-font-family
+              );
+
+            font-size:
+              13px;
+          }
+
+          .instructions {
+            margin-top:
+              24px;
+
+            padding:
+              18px;
+
+            border-left:
+              3px solid
+              var(
+                --vscode-focusBorder
+              );
+
+            border-radius:
+              8px;
+
+            background:
+              var(
+                --vscode-textBlockQuote-background
+              );
+          }
+
+          .instructions h2 {
+            margin:
+              0 0 10px;
+
+            font-size:
+              15px;
+          }
+
+          .instructions ol {
+            margin:
+              0;
+
+            padding-left:
+              20px;
+
+            color:
+              var(
+                --vscode-descriptionForeground
+              );
+
+            font-size:
+              13px;
+
+            line-height:
+              1.7;
+          }
+
+          .security {
+            margin-top:
+              18px;
+
+            color:
+              var(
+                --vscode-descriptionForeground
+              );
+
+            font-size:
+              12px;
+
+            line-height:
+              1.5;
+
+            text-align:
+              center;
+          }
+        </style>
+      </head>
+
+      <body>
+        <main class="page">
+          <header class="header">
+            <p class="eyebrow">
+              Flutter AirRun
+            </p>
+
+            <h1>
+              ${escapeHtml(heading)}
+            </h1>
+
+            <p class="description">
+              ${escapeHtml(description)}
+            </p>
+          </header>
+
+          <section class="qr-card">
+            <div class="qr-wrapper">
+              <img
+                src="${qrDataUrl}"
+                alt="Code QR d’association Flutter AirRun"
+              />
+            </div>
+
+            <div class="status">
+              <span class="status-dot"></span>
+
+              <span>
+                ${escapeHtml(statusMessage)}
+              </span>
+            </div>
+
+            <div class="details">
+              <div class="detail">
+                <span class="detail-label">
+                  Service temporaire
+                </span>
+
+                <span class="detail-value">
+                  ${escapedServiceName}
+                </span>
+              </div>
+
+              <div class="detail">
+                <span class="detail-label">
+                  Générateur
+                </span>
+
+                <span class="detail-value">
+                  TypeScript ${escapedGeneratorVersion}
+                </span>
+              </div>
+
+              <div class="detail">
+                <span class="detail-label">
+                  Protocole
+                </span>
+
+                <span class="detail-value">
+                  ${session.protocolVersion}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          ${
+            mode === 'pairing'
+              ? `
+                <section class="instructions">
+                  <h2>
+                    Étapes sur Android
+                  </h2>
+
+                  <ol>
+                    <li>
+                      Ouvrez les Options pour les développeurs.
+                    </li>
+
+                    <li>
+                      Ouvrez Débogage sans fil.
+                    </li>
+
+                    <li>
+                      Choisissez Associer un appareil avec un code QR.
+                    </li>
+
+                    <li>
+                      Scannez le QR affiché dans cette fenêtre.
+                    </li>
+
+                    <li>
+                      Gardez cette fenêtre ouverte pendant la connexion.
+                    </li>
+                  </ol>
+                </section>
+              `
+              : ''
+          }
+
+          <p class="security">
+            Le secret d’association est généré localement et
+            n’est pas affiché en clair dans cette fenêtre.
+          </p>
+        </main>
+      </body>
+    </html>
+  `;
 }
 
 function escapeHtml(
   value: string,
 ): string {
-  return value.replace(
-    /[&<>"']/g,
-    character => {
-      switch (character) {
-        case '&':
-          return '&amp;';
-
-        case '<':
-          return '&lt;';
-
-        case '>':
-          return '&gt;';
-
-        case '"':
-          return '&quot;';
-
-        case "'":
-          return '&#039;';
-
-        default:
-          return character;
-      }
-    },
-  );
+  return value
+    .replaceAll(
+      '&',
+      '&amp;',
+    )
+    .replaceAll(
+      '<',
+      '&lt;',
+    )
+    .replaceAll(
+      '>',
+      '&gt;',
+    )
+    .replaceAll(
+      '"',
+      '&quot;',
+    )
+    .replaceAll(
+      "'",
+      '&#039;',
+    );
 }
