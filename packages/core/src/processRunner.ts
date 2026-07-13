@@ -7,6 +7,7 @@ export interface ProcessRunOptions {
   cwd?: string;
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
+  stdin?: string;
 }
 
 export interface ProcessResult {
@@ -52,16 +53,31 @@ export class ProcessRunner {
       let timedOut = false;
       let settled = false;
 
-      child.stdout?.setEncoding('utf8');
-      child.stderr?.setEncoding('utf8');
+      child.stdout.setEncoding('utf8');
+      child.stderr.setEncoding('utf8');
 
-      child.stdout?.on('data', (data: string) => {
+      child.stdout.on('data', (data: string) => {
         stdout += data;
       });
 
-      child.stderr?.on('data', (data: string) => {
+      child.stderr.on('data', (data: string) => {
         stderr += data;
       });
+
+      /*
+       * Certaines commandes peuvent fermer stdin avant que Node
+       * tente d’y écrire. Nous ignorons uniquement cette erreur
+       * de canal ; le code de sortie sera toujours contrôlé.
+       */
+      child.stdin.on('error', () => {
+        // Rien à faire ici.
+      });
+
+      if (options.stdin !== undefined) {
+        child.stdin.end(options.stdin);
+      } else {
+        child.stdin.end();
+      }
 
       const timeout =
         options.timeoutMs && options.timeoutMs > 0
@@ -109,7 +125,10 @@ export class ProcessRunner {
     });
   }
 
-  private createLaunchError(command: string, error: unknown): Error {
+  private createLaunchError(
+    command: string,
+    error: unknown,
+  ): Error {
     const reason =
       error instanceof Error
         ? error.message

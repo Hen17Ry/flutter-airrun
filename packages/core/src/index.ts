@@ -9,3 +9,4 @@ export * from './devices/deviceDiscoveryService';
 export * from './wireless/mdnsService';
 export * from './wireless/mdnsDiscoveryService';
 export * from './wireless/wirelessStatusService';
+export * from './wireless/pairingService';
