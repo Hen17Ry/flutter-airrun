@@ -21,6 +21,10 @@ import {
   registerShowWirelessStatusCommand,
 } from './commands/showWirelessStatusCommand';
 
+import {
+  registerHelperDoctorCommand,
+} from './commands/helperDoctorCommand';
+
 const EXTENSION_NAME = 'Flutter AirRun';
 
 const COMMANDS = {
@@ -148,6 +152,12 @@ export function activate(
       outputChannel,
     );
 
+  const helperDoctorCommand =
+    registerHelperDoctorCommand(
+      context,
+      outputChannel,
+    );
+
   context.subscriptions.push(
     outputChannel,
     helloCommand,
@@ -156,6 +166,7 @@ export function activate(
     wirelessStatusCommand,
     pairDeviceCommand,
     runWirelessCommand,
+    helperDoctorCommand,
   );
 }
 

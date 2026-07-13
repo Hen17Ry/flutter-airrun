@@ -54,8 +54,24 @@
         "command": "flutterAirRun.runWireless",
         "title": "Run on Wireless Device",
         "category": "Flutter AirRun"
+      },
+      {
+        "command": "flutterAirRun.helperDoctor",
+        "title": "QR Helper Doctor",
+        "category": "Flutter AirRun"
       }
-    ]
+    ],
+    "configuration": {
+      "title": "Flutter AirRun",
+      "properties": {
+        "flutterAirRun.helperPath": {
+          "type": "string",
+          "default": "",
+          "scope": "machine",
+          "description": "Optional absolute path to the Flutter AirRun native QR pairing helper."
+        }
+      }
+    }
   },
   "scripts": {
     "build": "pnpm --filter @flutter-airrun/core build && node esbuild.mjs",
@@ -73,6 +89,6 @@
     "typescript": "^7.0.2"
   },
   "activationEvents": [
-    
+    "onCommand:flutterAirRun.helperDoctor"
   ]
 }
