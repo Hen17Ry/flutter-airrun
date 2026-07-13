@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+out/
+coverage/
+
+# VS Code extension testing
+.vscode-test/
+.vscode-test-web/
+
+# Packaged extensions
+*.vsix
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# Editors and operating systems
+.idea/
+.DS_Store
+Thumbs.db

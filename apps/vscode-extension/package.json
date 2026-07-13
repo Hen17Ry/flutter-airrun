@@ -1,0 +1,48 @@
+{
+  "name": "flutter-airrun",
+  "displayName": "Flutter AirRun",
+  "description": "Run Flutter applications on Android devices over wireless ADB.",
+  "version": "0.1.0",
+  "publisher": "flutter-airrun",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "vscode": "^1.100.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "keywords": [
+    "flutter",
+    "android",
+    "adb",
+    "wireless",
+    "device"
+  ],
+  "extensionKind": [
+    "ui"
+  ],
+  "activationEvents": [],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "flutterAirRun.hello",
+        "title": "Flutter AirRun: Hello",
+        "category": "Flutter AirRun"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "check": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "@types/vscode": "1.100.0",
+    "esbuild": "^0.28.1",
+    "typescript": "^7.0.2"
+  }
+}
