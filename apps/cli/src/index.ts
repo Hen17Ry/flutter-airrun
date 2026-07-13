@@ -28,6 +28,10 @@ import {
 } from './helperPathResolver';
 
 import {
+  printBrandBanner,
+} from './branding';
+
+import {
   ask,
   choose,
   failure,
@@ -58,9 +62,17 @@ async function main(): Promise<void> {
     args.includes('--help') ||
     args.includes('-h')
   ) {
+    printBrandBanner(
+      CLI_VERSION,
+    );
+
     printHelp();
     return;
   }
+
+  printBrandBanner(
+    CLI_VERSION,
+  );
 
   if (args.length === 0) {
     await interactiveMenu();
@@ -107,49 +119,45 @@ async function main(): Promise<void> {
 
 async function interactiveMenu():
   Promise<void> {
-  printTitle(
-    'Flutter AirRun',
-  );
-
   const actions = [
     {
       id: 'run',
       label:
-        'Lancer l’application sans fil',
+        '▶  Lancer l’application sans fil',
     },
     {
       id: 'pair-qr',
       label:
-        'Associer un téléphone par QR code',
+        '▦  Associer un téléphone par QR code',
     },
     {
       id: 'pair-code',
       label:
-        'Associer un téléphone avec un code',
+        '#  Associer un téléphone avec un code',
     },
     {
       id: 'doctor',
       label:
-        'Vérifier l’environnement',
+        '✓  Vérifier l’environnement',
     },
     {
       id: 'devices',
       label:
-        'Afficher les appareils',
+        '◉  Afficher les appareils',
     },
     {
       id: 'status',
       label:
-        'Vérifier le débogage sans fil',
+        '≋  Vérifier le débogage sans fil',
     },
     {
       id: 'quit',
-      label: 'Quitter',
+      label: '×  Quitter',
     },
   ] as const;
 
   const action = await choose(
-    'Choisissez une action :',
+    'Que voulez-vous faire ?',
     actions,
     item => item.label,
   );
@@ -701,7 +709,7 @@ async function runCommand(
   args: readonly string[],
 ): Promise<void> {
   printTitle(
-    'Flutter AirRun',
+    'Lancement sans fil',
   );
 
   const projectRoot =
