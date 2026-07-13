@@ -33,6 +33,10 @@ import {
   registerQrPairDeviceCommand,
 } from './commands/qrPairDeviceCommand';
 
+import {
+  registerAirRunActionsView,
+} from './views/airRunActionsView';
+
 const EXTENSION_NAME = 'Flutter AirRun';
 
 const COMMANDS = {
@@ -179,6 +183,9 @@ export function activate(
 
   context.subscriptions.push(
     outputChannel,
+    ...registerAirRunActionsView(
+    context,
+    ),
     helloCommand,
     doctorCommand,
     devicesCommand,

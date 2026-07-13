@@ -69,6 +69,12 @@
         "command": "flutterAirRun.pairDeviceWithQr",
         "title": "Pair Device with QR Code",
         "category": "Flutter AirRun"
+      },
+      {
+        "command": "flutterAirRun.refreshActions",
+        "title": "Refresh AirRun Actions",
+        "category": "Flutter AirRun",
+        "icon": "$(refresh)"
       }
     ],
     "configuration": {
@@ -81,6 +87,33 @@
           "description": "Optional absolute path to the Flutter AirRun native QR pairing helper."
         }
       }
+    },
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "flutterAirRun",
+          "title": "Flutter AirRun",
+          "icon": "resources/airrun.svg"
+        }
+      ]
+    },
+    "views": {
+      "flutterAirRun": [
+        {
+          "id": "flutterAirRun.actions",
+          "name": "Actions",
+          "contextualTitle": "Flutter AirRun"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "flutterAirRun.refreshActions",
+          "when": "view == flutterAirRun.actions",
+          "group": "navigation"
+        }
+      ]
     }
   },
   "scripts": {
@@ -103,6 +136,7 @@
   "activationEvents": [
     "onCommand:flutterAirRun.helperDoctor",
     "onCommand:flutterAirRun.qrSessionPreview",
-    "onCommand:flutterAirRun.pairDeviceWithQr"
+    "onCommand:flutterAirRun.pairDeviceWithQr",
+    "onView:flutterAirRun.actions"
   ]
 }
