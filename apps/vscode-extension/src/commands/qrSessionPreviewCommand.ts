@@ -66,10 +66,10 @@ export function registerQrSessionPreviewCommand(
               '[QR] Prévisualisation de session créée.',
             );
 
-            await vscode.window
-              .showInformationMessage(
-                'Session QR générée.',
-              );
+            void vscode.window
+            .showInformationMessage(
+              'Session QR générée.',
+            );
           } catch (error) {
             const message =
               error instanceof Error

@@ -14,6 +14,11 @@ import {
   type AdbMdnsService,
 } from './mdnsService';
 
+export interface PairingOptions {
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}
+
 export interface PairingResult {
   paired: boolean;
   connected: boolean;
@@ -49,8 +54,10 @@ export class PairingService {
   public async pair(
     service: AdbMdnsService,
     pairingCode: string,
+    options: PairingOptions = {},
   ): Promise<PairingResult> {
-    const normalizedCode = pairingCode.trim();
+    const normalizedCode =
+      pairingCode.trim();
 
     if (!/^\d{6}$/.test(normalizedCode)) {
       throw new Error(
@@ -58,9 +65,48 @@ export class PairingService {
       );
     }
 
+    return this.pairWithSecret(
+      service,
+      normalizedCode,
+      options,
+    );
+  }
+
+  public async pairWithSecret(
+    service: AdbMdnsService,
+    pairingSecret: string,
+    options: PairingOptions = {},
+  ): Promise<PairingResult> {
+    const normalizedSecret =
+      pairingSecret.trim();
+
+    if (!normalizedSecret) {
+      throw new Error(
+        'Le secret d’association est vide.',
+      );
+    }
+
+    if (/[\r\n\0]/.test(normalizedSecret)) {
+      throw new Error(
+        'Le secret d’association contient des caractères interdits.',
+      );
+    }
+
+    if (normalizedSecret.length > 4_096) {
+      throw new Error(
+        'Le secret d’association est trop long.',
+      );
+    }
+
     if (service.serviceType !== 'pairing') {
       throw new Error(
         'Le service sélectionné n’est pas un service d’association ADB.',
+      );
+    }
+
+    if (options.signal?.aborted) {
+      throw new Error(
+        'Association ADB annulée.',
       );
     }
 
@@ -74,25 +120,42 @@ export class PairingService {
     }
 
     /*
-     * Le code n’est pas placé dans args.
-     * Il est envoyé à l’entrée standard de la commande.
+     * Le secret n’apparaît pas dans les arguments
+     * du processus. Il passe uniquement par stdin.
      */
     const result = await this.processRunner.run(
       adbPath,
       ['pair', service.endpoint],
       {
-        timeoutMs: 30_000,
-        stdin: `${normalizedCode}\n`,
+        timeoutMs:
+          options.timeoutMs ?? 30_000,
+        stdin: `${normalizedSecret}\n`,
+        ...(options.signal
+          ? {
+              signal: options.signal,
+            }
+          : {}),
       },
     );
 
-    const adbOutput = this.redactSecret(
-      this.combineOutput(
-        result.stdout,
-        result.stderr,
+    
+
+   const adbOutput =
+    this.sanitizeAdbOutput(
+      this.redactSecret(
+        this.combineOutput(
+          result.stdout,
+          result.stderr,
+        ),
+        pairingSecret,
       ),
-      normalizedCode,
     );
+
+    if (result.aborted) {
+      throw new Error(
+        'Association ADB annulée.',
+      );
+    }
 
     if (result.timedOut) {
       throw new Error(
@@ -102,7 +165,9 @@ export class PairingService {
 
     const paired =
       result.exitCode === 0 &&
-      /successfully paired/i.test(adbOutput);
+      /successfully paired/i.test(
+        adbOutput,
+      );
 
     if (!paired) {
       throw new Error(
@@ -123,7 +188,8 @@ export class PairingService {
       paired: true,
       connected: device !== null,
       endpoint: service.endpoint,
-      instanceName: service.instanceName,
+      instanceName:
+        service.instanceName,
       adbOutput,
       device,
     };
@@ -245,6 +311,17 @@ export class PairingService {
       .map(value => value.trim())
       .filter(Boolean)
       .join('\n');
+  }
+
+  private sanitizeAdbOutput(
+    output: string,
+  ): string {
+    return output
+      .replace(
+        /Enter pairing code:\s*/gi,
+        '',
+      )
+      .trim();
   }
 
   private redactSecret(

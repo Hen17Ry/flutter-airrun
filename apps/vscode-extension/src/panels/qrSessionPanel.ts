@@ -1,4 +1,6 @@
-import { randomBytes } from 'node:crypto';
+import {
+  randomBytes,
+} from 'node:crypto';
 
 import type {
   NativeHelperQrSession,
@@ -8,11 +10,17 @@ import * as QRCode from 'qrcode';
 import * as vscode from 'vscode';
 
 const QR_SESSION_VIEW_TYPE =
-  'flutterAirRun.qrSessionPreview';
+  'flutterAirRun.qrSession';
+
+export type QrSessionPanelMode =
+  | 'preview'
+  | 'pairing';
 
 export async function showQrSessionPanel(
   session: NativeHelperQrSession,
-): Promise<void> {
+  mode: QrSessionPanelMode =
+    'preview',
+): Promise<vscode.WebviewPanel> {
   const qrSvg = await QRCode.toString(
     session.qrPayload,
     {
@@ -23,37 +31,76 @@ export async function showQrSessionPanel(
     },
   );
 
+  const title =
+    mode === 'pairing'
+      ? 'Flutter AirRun — Pairing QR'
+      : 'Flutter AirRun — QR Session';
+
   const panel =
     vscode.window.createWebviewPanel(
       QR_SESSION_VIEW_TYPE,
-      'Flutter AirRun — QR Session',
+      title,
       vscode.ViewColumn.Beside,
       {
         enableScripts: false,
-        retainContextWhenHidden: false,
+        retainContextWhenHidden:
+          false,
       },
     );
 
   panel.webview.html = buildHtml(
-    panel.webview,
     session,
     qrSvg,
+    mode,
   );
+
+  return panel;
 }
 
 function buildHtml(
-  webview: vscode.Webview,
   session: NativeHelperQrSession,
   qrSvg: string,
+  mode: QrSessionPanelMode,
 ): string {
   const nonce =
-    randomBytes(18).toString('base64');
+    randomBytes(18).toString(
+      'base64',
+    );
 
   const serviceName =
-    escapeHtml(session.serviceName);
+    escapeHtml(
+      session.serviceName,
+    );
 
   const helperVersion =
-    escapeHtml(session.helperVersion);
+    escapeHtml(
+      session.helperVersion,
+    );
+
+  const isPairing =
+    mode === 'pairing';
+
+  const subtitle = isPairing
+    ? 'Scannez ce QR depuis les paramètres de débogage sans fil de votre téléphone.'
+    : 'Prévisualisation de la session générée par Flutter AirRun.';
+
+  const notice = isPairing
+    ? `
+      <strong>Association en attente.</strong>
+      Sur le téléphone, ouvrez
+      <em>Débogage sans fil</em>, puis
+      <em>Associer un appareil avec un code QR</em>.
+      Le panneau se fermera automatiquement après le succès.
+    `
+    : `
+      <strong>Prévisualisation uniquement.</strong>
+      Aucune association ne sera lancée depuis cette commande.
+    `;
+
+  const noticeClass =
+    isPairing
+      ? 'notice active'
+      : 'notice';
 
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -73,7 +120,7 @@ function buildHtml(
     "
   >
 
-  <title>Flutter AirRun — QR Session</title>
+  <title>Flutter AirRun</title>
 
   <style nonce="${nonce}">
     :root {
@@ -107,7 +154,6 @@ function buildHtml(
     h1 {
       margin: 0 0 8px;
       font-size: 24px;
-      font-weight: 650;
     }
 
     .subtitle {
@@ -176,7 +222,12 @@ function buildHtml(
         var(--vscode-inputValidation-warningBackground);
       color:
         var(--vscode-inputValidation-warningForeground);
-      line-height: 1.5;
+      line-height: 1.55;
+    }
+
+    .notice.active {
+      border-color:
+        var(--vscode-testing-iconPassed);
     }
 
     .security {
@@ -213,10 +264,8 @@ function buildHtml(
   <main>
     <header>
       <h1>Session QR ADB</h1>
-
       <p class="subtitle">
-        Prévisualisation de la session générée
-        par Flutter AirRun.
+        ${escapeHtml(subtitle)}
       </p>
     </header>
 
@@ -240,19 +289,14 @@ function buildHtml(
         <dd>${session.protocolVersion}</dd>
       </dl>
 
-      <div class="notice">
-        <strong>Prévisualisation uniquement.</strong>
-        Le serveur natif d’association ADB
-        n’est pas encore démarré. Scanner ce QR
-        maintenant ne pourra donc pas terminer
-        l’association.
+      <div class="${noticeClass}">
+        ${notice}
       </div>
 
       <p class="security">
-        Le secret est encodé dans le QR,
-        mais il n’est pas affiché en clair.
-        Fermer ce panneau détruit cette
-        prévisualisation.
+        Le secret reste uniquement en mémoire
+        et dans le QR. Il n’est pas écrit dans
+        les journaux de Flutter AirRun.
       </p>
     </section>
   </main>

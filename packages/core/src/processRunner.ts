@@ -8,6 +8,9 @@ export interface ProcessRunOptions {
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   stdin?: string;
+  signal?: AbortSignal;
+  onStdout?: (chunk: string) => void;
+  onStderr?: (chunk: string) => void;
 }
 
 export interface ProcessResult {
@@ -18,6 +21,7 @@ export interface ProcessResult {
   stderr: string;
   durationMs: number;
   timedOut: boolean;
+  aborted: boolean;
 }
 
 export class ProcessRunner {
@@ -28,101 +32,174 @@ export class ProcessRunner {
   ): Promise<ProcessResult> {
     const startedAt = Date.now();
 
-    return new Promise<ProcessResult>((resolve, reject) => {
-      const spawnOptions: SpawnOptionsWithoutStdio = {
-        shell: false,
-        windowsHide: true,
-        env: options.env ?? process.env,
-      };
+    return new Promise<ProcessResult>(
+      (resolve, reject) => {
+        const spawnOptions:
+          SpawnOptionsWithoutStdio = {
+          shell: false,
+          windowsHide: true,
+          env: options.env ?? process.env,
+        };
 
-      if (options.cwd) {
-        spawnOptions.cwd = options.cwd;
-      }
+        if (options.cwd) {
+          spawnOptions.cwd = options.cwd;
+        }
 
-      let child;
+        let child;
 
-      try {
-        child = spawn(command, [...args], spawnOptions);
-      } catch (error) {
-        reject(this.createLaunchError(command, error));
-        return;
-      }
+        try {
+          child = spawn(
+            command,
+            [...args],
+            spawnOptions,
+          );
+        } catch (error) {
+          reject(
+            this.createLaunchError(
+              command,
+              error,
+            ),
+          );
 
-      let stdout = '';
-      let stderr = '';
-      let timedOut = false;
-      let settled = false;
-
-      child.stdout.setEncoding('utf8');
-      child.stderr.setEncoding('utf8');
-
-      child.stdout.on('data', (data: string) => {
-        stdout += data;
-      });
-
-      child.stderr.on('data', (data: string) => {
-        stderr += data;
-      });
-
-      /*
-       * Certaines commandes peuvent fermer stdin avant que Node
-       * tente d’y écrire. Nous ignorons uniquement cette erreur
-       * de canal ; le code de sortie sera toujours contrôlé.
-       */
-      child.stdin.on('error', () => {
-        // Rien à faire ici.
-      });
-
-      if (options.stdin !== undefined) {
-        child.stdin.end(options.stdin);
-      } else {
-        child.stdin.end();
-      }
-
-      const timeout =
-        options.timeoutMs && options.timeoutMs > 0
-          ? setTimeout(() => {
-              timedOut = true;
-              child.kill('SIGTERM');
-            }, options.timeoutMs)
-          : undefined;
-
-      child.once('error', error => {
-        if (settled) {
           return;
         }
 
-        settled = true;
+        let stdout = '';
+        let stderr = '';
+        let timedOut = false;
+        let aborted = false;
+        let settled = false;
 
-        if (timeout) {
-          clearTimeout(timeout);
-        }
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
 
-        reject(this.createLaunchError(command, error));
-      });
+        child.stdout.on(
+          'data',
+          (data: string) => {
+            stdout += data;
 
-      child.once('close', exitCode => {
-        if (settled) {
-          return;
-        }
+            try {
+              options.onStdout?.(data);
+            } catch {
+              // Une erreur d’observation ne doit
+              // pas interrompre le processus.
+            }
+          },
+        );
 
-        settled = true;
+        child.stderr.on(
+          'data',
+          (data: string) => {
+            stderr += data;
 
-        if (timeout) {
-          clearTimeout(timeout);
-        }
+            try {
+              options.onStderr?.(data);
+            } catch {
+              // Même principe pour stderr.
+            }
+          },
+        );
 
-        resolve({
-          command,
-          args,
-          exitCode,
-          stdout,
-          stderr,
-          durationMs: Date.now() - startedAt,
-          timedOut,
+        child.stdin.on('error', () => {
+          // Le programme peut fermer stdin
+          // avant que Node termine l’écriture.
         });
-      });
-    });
+
+        if (options.stdin !== undefined) {
+          child.stdin.end(options.stdin);
+        } else {
+          child.stdin.end();
+        }
+
+        const abortHandler = (): void => {
+          if (settled || child.killed) {
+            return;
+          }
+
+          aborted = true;
+          child.kill('SIGTERM');
+        };
+
+        if (options.signal) {
+          if (options.signal.aborted) {
+            abortHandler();
+          } else {
+            options.signal.addEventListener(
+              'abort',
+              abortHandler,
+              {
+                once: true,
+              },
+            );
+          }
+        }
+
+        const timeout =
+          options.timeoutMs &&
+          options.timeoutMs > 0
+            ? setTimeout(() => {
+                if (
+                  settled ||
+                  child.killed
+                ) {
+                  return;
+                }
+
+                timedOut = true;
+                child.kill('SIGTERM');
+              }, options.timeoutMs)
+            : undefined;
+
+        const cleanup = (): void => {
+          if (timeout) {
+            clearTimeout(timeout);
+          }
+
+          options.signal
+            ?.removeEventListener(
+              'abort',
+              abortHandler,
+            );
+        };
+
+        child.once('error', error => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          cleanup();
+
+          reject(
+            this.createLaunchError(
+              command,
+              error,
+            ),
+          );
+        });
+
+        child.once('close', exitCode => {
+          if (settled) {
+            return;
+          }
+
+          settled = true;
+          cleanup();
+
+          resolve({
+            command,
+            args,
+            exitCode,
+            stdout,
+            stderr,
+            durationMs:
+              Date.now() - startedAt,
+            timedOut,
+            aborted,
+          });
+        });
+      },
+    );
   }
 
   private createLaunchError(

@@ -64,6 +64,11 @@
         "command": "flutterAirRun.qrSessionPreview",
         "title": "Preview QR Pairing Session",
         "category": "Flutter AirRun"
+      },
+      {
+        "command": "flutterAirRun.pairDeviceWithQr",
+        "title": "Pair Device with QR Code",
+        "category": "Flutter AirRun"
       }
     ],
     "configuration": {
@@ -97,6 +102,7 @@
   },
   "activationEvents": [
     "onCommand:flutterAirRun.helperDoctor",
-    "onCommand:flutterAirRun.qrSessionPreview"
+    "onCommand:flutterAirRun.qrSessionPreview",
+    "onCommand:flutterAirRun.pairDeviceWithQr"
   ]
 }
