@@ -49,6 +49,11 @@
         "command": "flutterAirRun.pairDevice",
         "title": "Pair Device with Code",
         "category": "Flutter AirRun"
+      },
+      {
+        "command": "flutterAirRun.runWireless",
+        "title": "Run on Wireless Device",
+        "category": "Flutter AirRun"
       }
     ]
   },

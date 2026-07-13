@@ -6,16 +6,20 @@ import {
 import * as vscode from 'vscode';
 
 import {
+  registerPairDeviceCommand,
+} from './commands/pairDeviceCommand';
+
+import {
+  registerRunWirelessCommand,
+} from './commands/runWirelessCommand';
+
+import {
   registerShowDevicesCommand,
 } from './commands/showDevicesCommand';
 
 import {
   registerShowWirelessStatusCommand,
 } from './commands/showWirelessStatusCommand';
-
-import {
-  registerPairDeviceCommand,
-} from './commands/pairDeviceCommand';
 
 const EXTENSION_NAME = 'Flutter AirRun';
 
@@ -67,9 +71,11 @@ export function activate(
             outputChannel.appendLine(
               '========================================',
             );
+
             outputChannel.appendLine(
               'Flutter AirRun Doctor',
             );
+
             outputChannel.appendLine(
               '========================================',
             );
@@ -82,12 +88,14 @@ export function activate(
             );
 
             outputChannel.appendLine('');
+
             writeToolInspection(
               outputChannel,
               report.flutter,
             );
 
             outputChannel.appendLine('');
+
             writeToolInspection(
               outputChannel,
               report.adb,
@@ -99,16 +107,14 @@ export function activate(
               report.flutter.available &&
               report.adb.available
             ) {
-              const flutterVersion =
-                report.flutter.version ??
-                'inconnue';
-
-              const adbVersion =
-                report.adb.version ??
-                'inconnue';
-
               await vscode.window.showInformationMessage(
-                `Environnement prêt — Flutter ${flutterVersion}, ADB ${adbVersion}.`,
+                `Environnement prêt — Flutter ${
+                  report.flutter.version ??
+                  'inconnue'
+                }, ADB ${
+                  report.adb.version ??
+                  'inconnue'
+                }.`,
               );
 
               return;
@@ -126,16 +132,21 @@ export function activate(
     registerShowDevicesCommand(
       outputChannel,
     );
-  
+
   const wirelessStatusCommand =
-  registerShowWirelessStatusCommand(
-    outputChannel,
-  );
+    registerShowWirelessStatusCommand(
+      outputChannel,
+    );
 
   const pairDeviceCommand =
-  registerPairDeviceCommand(
-    outputChannel,
-  );
+    registerPairDeviceCommand(
+      outputChannel,
+    );
+
+  const runWirelessCommand =
+    registerRunWirelessCommand(
+      outputChannel,
+    );
 
   context.subscriptions.push(
     outputChannel,
@@ -144,6 +155,7 @@ export function activate(
     devicesCommand,
     wirelessStatusCommand,
     pairDeviceCommand,
+    runWirelessCommand,
   );
 }
 
@@ -180,7 +192,8 @@ function writeToolInspection(
     );
 
     for (
-      const line of tool.rawOutput.split(/\r?\n/)
+      const line of
+      tool.rawOutput.split(/\r?\n/)
     ) {
       outputChannel.appendLine(
         `  ${line}`,
@@ -188,7 +201,6 @@ function writeToolInspection(
     }
   }
 }
-
 
 export function deactivate(): void {
   // VS Code libère automatiquement les ressources.

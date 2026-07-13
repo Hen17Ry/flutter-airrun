@@ -74,66 +74,92 @@ export class AdbDeviceService {
     };
   }
 
-  public parseDevices(output: string): readonly AdbDevice[] {
-    const devices: AdbDevice[] = [];
+public parseDevices(
+  output: string,
+): readonly AdbDevice[] {
+  const devices: AdbDevice[] = [];
 
-    for (const rawLine of output.split(/\r?\n/)) {
-      const line = rawLine.trim();
+  const deviceLinePattern =
+    /^(.*?)\s+(device|offline|unauthorized|no permissions)(?:\s+(.*))?$/;
 
-      if (
-        !line ||
-        line === 'List of devices attached' ||
-        line.startsWith('* daemon')
-      ) {
-        continue;
-      }
+  for (const rawLine of output.split(/\r?\n/)) {
+    const line = rawLine.trim();
 
-      const tokens = line.split(/\s+/);
-      const serial = tokens[0];
-      const state = tokens[1];
-
-      if (!serial || !state) {
-        continue;
-      }
-
-      const attributes: Record<string, string> = {};
-
-      for (const token of tokens.slice(2)) {
-        const separatorIndex = token.indexOf(':');
-
-        if (separatorIndex <= 0) {
-          continue;
-        }
-
-        const key = token.slice(0, separatorIndex);
-        const value = token.slice(separatorIndex + 1);
-
-        if (key && value) {
-          attributes[key] = value;
-        }
-      }
-
-      devices.push({
-        serial,
-        state,
-        product: attributes.product ?? null,
-        model: this.normalizeModel(
-          attributes.model ?? null,
-        ),
-        device: attributes.device ?? null,
-        transportId:
-          attributes.transport_id ?? null,
-        connectionType:
-          this.detectConnectionType(
-            serial,
-            attributes,
-          ),
-        attributes,
-      });
+    if (
+      !line ||
+      line === 'List of devices attached' ||
+      line.startsWith('* daemon')
+    ) {
+      continue;
     }
 
-    return devices;
+    const match = line.match(
+      deviceLinePattern,
+    );
+
+    if (!match) {
+      continue;
+    }
+
+    const serial = match[1]?.trim();
+    const state = match[2]?.trim();
+    const metadata = match[3] ?? '';
+
+    if (!serial || !state) {
+      continue;
+    }
+
+    const attributes:
+      Record<string, string> = {};
+
+    for (
+      const token of
+      metadata.split(/\s+/)
+    ) {
+      const separatorIndex =
+        token.indexOf(':');
+
+      if (separatorIndex <= 0) {
+        continue;
+      }
+
+      const key = token.slice(
+        0,
+        separatorIndex,
+      );
+
+      const value = token.slice(
+        separatorIndex + 1,
+      );
+
+      if (key && value) {
+        attributes[key] = value;
+      }
+    }
+
+    devices.push({
+      serial,
+      state,
+      product:
+        attributes.product ?? null,
+      model: this.normalizeModel(
+        attributes.model ?? null,
+      ),
+      device:
+        attributes.device ?? null,
+      transportId:
+        attributes.transport_id ?? null,
+      connectionType:
+        this.detectConnectionType(
+          serial,
+          attributes,
+        ),
+      attributes,
+    });
   }
+
+  return devices;
+}
 
   private detectConnectionType(
     serial: string,
