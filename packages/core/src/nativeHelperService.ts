@@ -15,6 +15,15 @@ export interface NativeHelperDoctorResult {
   status: 'ok' | 'error';
 }
 
+export interface NativeHelperQrSession {
+  type: 'qr_session';
+  protocolVersion: number;
+  helperVersion: string;
+  serviceName: string;
+  password: string;
+  qrPayload: string;
+}
+
 export interface NativeHelperError {
   type: 'error';
   protocolVersion: number;
@@ -25,6 +34,7 @@ export interface NativeHelperError {
 export type NativeHelperMessage =
   | NativeHelperVersion
   | NativeHelperDoctorResult
+  | NativeHelperQrSession
   | NativeHelperError;
 
 export class NativeHelperService {
@@ -42,6 +52,8 @@ export class NativeHelperService {
       ['--version'],
       5_000,
     );
+
+    this.throwIfHelperError(message);
 
     if (message.type !== 'version') {
       throw new Error(
@@ -63,11 +75,7 @@ export class NativeHelperService {
       10_000,
     );
 
-    if (message.type === 'error') {
-      throw new Error(
-        `${message.code} : ${message.message}`,
-      );
-    }
+    this.throwIfHelperError(message);
 
     if (message.type !== 'doctor_result') {
       throw new Error(
@@ -78,6 +86,60 @@ export class NativeHelperService {
     this.assertProtocolCompatibility(
       message.protocolVersion,
     );
+
+    return message;
+  }
+
+  public async createQrSession():
+    Promise<NativeHelperQrSession> {
+    const message = await this.runAndParse(
+      ['qr-session'],
+      5_000,
+    );
+
+    this.throwIfHelperError(message);
+
+    if (message.type !== 'qr_session') {
+      throw new Error(
+        `Le helper a retourné un message inattendu : ${message.type}.`,
+      );
+    }
+
+    this.assertProtocolCompatibility(
+      message.protocolVersion,
+    );
+
+    const expectedPayload =
+      `WIFI:T:ADB;S:${message.serviceName};P:${message.password};;`;
+
+    if (
+      message.qrPayload !==
+      expectedPayload
+    ) {
+      throw new Error(
+        'Le payload QR retourné par le helper est incohérent.',
+      );
+    }
+
+    if (
+      !/^airrun-[a-f0-9]{12}$/.test(
+        message.serviceName,
+      )
+    ) {
+      throw new Error(
+        'Le nom du service QR retourné est invalide.',
+      );
+    }
+
+    if (
+      !/^[a-f0-9]{32}$/.test(
+        message.password,
+      )
+    ) {
+      throw new Error(
+        'Le secret de la session QR est invalide.',
+      );
+    }
 
     return message;
   }
@@ -108,9 +170,8 @@ export class NativeHelperService {
       );
     }
 
-    const message = this.parseLastJsonMessage(
-      output,
-    );
+    const message =
+      this.parseLastJsonMessage(output);
 
     if (
       result.exitCode !== 0 &&
@@ -179,18 +240,34 @@ export class NativeHelperService {
     switch (value.type) {
       case 'version':
         return (
-          typeof value.helperVersion === 'string'
+          typeof value.helperVersion ===
+          'string'
         );
 
       case 'doctor_result':
         return (
-          typeof value.helperVersion === 'string' &&
-          typeof value.platform === 'string' &&
-          typeof value.architecture === 'string' &&
+          typeof value.helperVersion ===
+            'string' &&
+          typeof value.platform ===
+            'string' &&
+          typeof value.architecture ===
+            'string' &&
           (
             value.status === 'ok' ||
             value.status === 'error'
           )
+        );
+
+      case 'qr_session':
+        return (
+          typeof value.helperVersion ===
+            'string' &&
+          typeof value.serviceName ===
+            'string' &&
+          typeof value.password ===
+            'string' &&
+          typeof value.qrPayload ===
+            'string'
         );
 
       case 'error':
@@ -201,6 +278,16 @@ export class NativeHelperService {
 
       default:
         return false;
+    }
+  }
+
+  private throwIfHelperError(
+    message: NativeHelperMessage,
+  ): void {
+    if (message.type === 'error') {
+      throw new Error(
+        `${message.code} : ${message.message}`,
+      );
     }
   }
 

@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 
 project(
   airrun_pair_helper
-  VERSION 0.1.0
+  VERSION 0.2.0
   LANGUAGES CXX
 )
 
@@ -32,5 +32,25 @@ else()
     -Wextra
     -Wpedantic
     -Wconversion
+  )
+endif()
+
+if(WIN32)
+  target_link_libraries(
+    airrun-pair-helper
+    PRIVATE
+    bcrypt
+  )
+elseif(APPLE)
+  find_library(
+    SECURITY_FRAMEWORK
+    Security
+    REQUIRED
+  )
+
+  target_link_libraries(
+    airrun-pair-helper
+    PRIVATE
+    "${SECURITY_FRAMEWORK}"
   )
 endif()
