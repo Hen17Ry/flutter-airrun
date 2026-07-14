@@ -173,4 +173,5 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --title "Flutter AirRun ${GITHUB_REF_NAME#v}" \
             --generate-notes \
+            --prerelease \
             --verify-tag
