@@ -7,7 +7,7 @@
     "airrun": "dist/airrun.cjs"
   },
   "scripts": {
-    "check": "tsc -p tsconfig.json --noEmit",
+    "check": "pnpm --filter @flutter-airrun/core build && tsc -p tsconfig.json --noEmit",
     "build": "pnpm --filter @flutter-airrun/core build && node esbuild.mjs",
     "start": "node dist/airrun.cjs",
     "build:executables": "pnpm run build && node scripts/build-executables.mjs"
