@@ -2,7 +2,7 @@
   "name": "flutter-airrun",
   "displayName": "Flutter AirRun",
   "description": "Pair, connect and run Flutter apps wirelessly on Android from VS Code or the interactive AirRun CLI.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "flutter-airrun",
   "license": "MIT",
   "private": true,
