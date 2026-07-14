@@ -20,9 +20,156 @@ env:
 
 jobs:
   build:
-    name: Build release packages
+    name: Build six VSIX packages
     runs-on: ubuntu-24.04
     timeout-minutes: 60
 
-    outputs:
-      version: ${{ steps.version
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v6
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+
+      - name: Install Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: ${{ env.BUN_VERSION }}
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Validate version
+        shell: bash
+        run: |
+          VERSION="$(node -p "require('./apps/vscode-extension/package.json').version")"
+          echo "Package version: $VERSION"
+
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            TAG_VERSION="${GITHUB_REF_NAME#v}"
+
+            if [[ "$VERSION" != "$TAG_VERSION" ]]; then
+              echo "Version mismatch: package=$VERSION tag=$TAG_VERSION"
+              exit 1
+            fi
+          fi
+
+      - name: Check workspace
+        run: pnpm check
+
+      - name: Run tests
+        run: pnpm test
+
+      - name: Build workspace
+        run: pnpm build
+
+      - name: Build standalone CLI executables
+        run: pnpm --filter @flutter-airrun/cli build:executables
+
+      - name: Package six VSIX targets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          targets=(
+            linux-x64
+            linux-arm64
+            win32-x64
+            win32-arm64
+            darwin-x64
+            darwin-arm64
+          )
+
+          for target in "${targets[@]}"; do
+            pnpm --filter flutter-airrun package:vsix -- "$target"
+          done
+
+      - name: Audit release packages
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION="$(node -p "require('./apps/vscode-extension/package.json').version")"
+          EXPECTED_COUNT=6
+          ACTUAL_COUNT="$(find artifacts -maxdepth 1 -type f -name "flutter-airrun-${VERSION}-*.vsix" | wc -l)"
+
+          echo "VSIX packages found: $ACTUAL_COUNT"
+
+          if [[ "$ACTUAL_COUNT" -ne "$EXPECTED_COUNT" ]]; then
+            echo "Expected $EXPECTED_COUNT VSIX packages."
+            exit 1
+          fi
+
+          for vsix in artifacts/flutter-airrun-${VERSION}-*.vsix; do
+            echo "Auditing $(basename "$vsix")"
+
+            if unzip -l "$vsix" | grep -Eqi 'airrun-pair-helper|nativeHelper|helperPath'; then
+              echo "Obsolete native helper reference detected in $vsix"
+              exit 1
+            fi
+
+            BIN_COUNT="$(unzip -l "$vsix" | grep -Ec 'extension/bin/.+/airrun(\.exe)?$')"
+
+            if [[ "$BIN_COUNT" -ne 1 ]]; then
+              echo "Expected exactly one platform CLI in $vsix; found $BIN_COUNT"
+              exit 1
+            fi
+          done
+
+      - name: Generate SHA-256 checksums
+        working-directory: artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha256sum flutter-airrun-*.vsix > SHA256SUMS.txt
+          sha256sum -c SHA256SUMS.txt
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: flutter-airrun-release-${{ github.run_number }}
+          path: |
+            artifacts/flutter-airrun-*.vsix
+            artifacts/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
+
+  release:
+    name: Publish GitHub release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download release artifact
+        uses: actions/download-artifact@v7
+        with:
+          name: flutter-airrun-release-${{ github.run_number }}
+          path: artifacts
+
+      - name: Publish release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          gh release create "$GITHUB_REF_NAME" \
+            artifacts/flutter-airrun-*.vsix \
+            artifacts/SHA256SUMS.txt \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Flutter AirRun ${GITHUB_REF_NAME#v}" \
+            --generate-notes \
+            --verify-tag
